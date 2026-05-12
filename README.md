@@ -141,15 +141,15 @@ Issues and PRs welcome at [github.com/arturl95/merit-aktiva-skills](https://gith
 
 # Merit Aktiva AI agentidele — eestikeelne juhend
 
-> Ühenda **Merit Aktiva** — Eesti enimkasutatav majandustarkvara — Claude'i, ChatGPT, Cursor'i ja teiste AI agentidega. **Merit Aktiva API**, raamatupidamise automatiseerimine, müügiarved, ostuarved, e-arved, käibedeklaratsioon (KMD) — kõik kuue Claude Code'i oskuse (skill) sees.
+> Ühenda **Merit Aktiva** — Eesti enimkasutatav majandustarkvara — Claude'i, ChatGPT, Cursori ja teiste AI agentidega. **Merit Aktiva API**, raamatupidamise automatiseerimine, müügiarved, ostuarved, e-arved, käibedeklaratsioon (KMD) — kõik see on pakendatud kuude Claude Code'i oskusesse (skill).
 
 ## Mis see on?
 
-**Merit Aktiva AI agentidele** on avatud lähtekoodiga Claude Code'i plugin, mis õpetab AI agentidele (Claude, ChatGPT, Cursor jt) **Merit Aktiva integratsiooni**: ametliku [Merit Aktiva API](https://api.merit.ee/) HMAC-SHA256 autentimist, kõiki v2 endpointe ja — kõige tähtsam — **2026. aasta Eesti maksureegleid**: käibemaks 24%, jaotuspõhine tulumaks 22/78, palgamaksud, KMD koodid, erisoodustused.
+**Merit Aktiva AI agentidele** on avatud lähtekoodiga Claude Code'i plugin, mis õpetab AI agentidele (Claude, ChatGPT, Cursor jt) selgeks **Merit Aktiva integratsiooni**: ametliku [Merit Aktiva API](https://api.merit.ee/) HMAC-SHA256 autentimise, kõik v2 endpoint'id ja — mis kõige tähtsam — **2026. aasta Eesti maksureeglid**: käibemaks 24%, jaotatud kasumi tulumaks 22/78, palgamaksud, KMD koodid ja erisoodustused.
 
-Plugin ei ole MCP server ega koodikogu — see on kuus **Markdown-failis kirjeldatud oskust**, mida AI loeb ja õpib, et **Merit Aktiva liidesega** õigesti suhelda. Sinu agent suhtleb otse `api.merit.ee`-ga HTTPS-i kaudu.
+See plugin ei ole MCP server ega kooditeek — see koosneb kuuest **Markdown-failis kirjeldatud oskusest**, mida AI loeb ja omandab, et **Merit Aktiva liidesega** korrektselt suhelda. Sinu agent suhtleb `api.merit.ee`-ga otse üle HTTPS-i.
 
-**Kasutusjuhud**: AI raamatupidamine, e-arve import, automaatne ostuarve sisestus, KMD esitamine ChatGPT abil, pangaväljavõtte automaatne kooskõlastus, igakuiste arvete genereerimine.
+**Kasutusjuhud**: AI raamatupidamine ja AI-toega raamatupidamine, e-arvete import, ostuarvete automaatne sisestamine, KMD koostamine ChatGPT abil, pangaväljavõtete automaatne kooskõlastamine ja igakuiste korduvate arvete genereerimine.
 
 ## Kiire alustamine
 
@@ -162,26 +162,26 @@ export MERIT_API_ID="sinu-api-id-guid"
 export MERIT_API_KEY="sinu-api-võti-salasõna"
 ```
 
-Seejärel küsi Claude'lt:
+Seejärel küsi Claude'ilt:
 
-> "Näita Acme OÜ tasumata arveid sellel kuul."
-> "Koosta Acme OÜ-le mai eest 1000 € + 24% käibemaks konsultatsioonarve."
-> "Impordi eelmise nädala Swedbanki pangaväljavõte ja kooskõlasta."
-> "Kontrolli aprilli KMD enne esitamist."
+> "Näita Acme OÜ selle kuu tasumata arveid."
+> "Koosta Acme OÜ-le mai eest konsultatsiooniteenuse arve summas 1000 € + 24% käibemaks."
+> "Impordi eelmise nädala Swedbanki pangaväljavõte ja kooskõlasta laekumised."
+> "Kontrolli aprilli KMD-d enne esitamist."
 
 ## Funktsioonid
 
-- **Müügiarved** — `sendinvoice` v2; ümardamine, TaxId, kreeditarved, e-arve väljastamine Omniva / Telema / pangakanali kaudu, PDF, e-kiri.
-- **Ostuarved** — tarnijaarved, kuluaruanded, kinnitusvoog, **pöördkäibemaks** EL-i ja kolmandate riikide tehingute jaoks.
-- **Maksed ja pangaväljavõte** — maksed, ettemaksud, kooskõlastused, **camt.053** automaatne import viitenumbri järgi.
-- **Pearaamat ja aruanded** — `sendglbatch` käsitsi raamatupidamiseks, kasum/kahjum (`getprofitloss`), bilanss (`getfinpos`), nõuded ostjate vastu, KMD kontroll.
-- **Eesti maksureeglid (2026)** — käibemaks 24% / 13% / 9%, sotsiaalmaks 33%, tulumaks 22%, põhivabastus 700 €, II sammas 2/4/6%, KMD ridade kaardistus, juhatuse liikme tasu eripärad.
-- **API allkirjastamine (HMAC-SHA256)** — ametliku spetsifikatsiooni ja 4 OSS kliendi (Go, TS, 2× PHP) vastu kontrollitud.
-- **Kinnituse-värav igal kirjutamisel** — payload kuvatakse, oodatakse "jah". Vajadusel partii-režiim.
+- **Müügiarved** — `sendinvoice` v2; ümardamised, TaxId, kreeditarved, e-arvete väljastamine Omniva, Telema või pangakanalite kaudu, PDF-ide ja e-kirjade genereerimine.
+- **Ostuarved** — hankija arved, kuluaruanded, kinnitusringid, **pöördkäibemaks** EL-i ja kolmandate riikide tehingutel.
+- **Maksed ja pangaväljavõtted** — laekumised, tasumised, ettemaksud, kooskõlastamised, **camt.053** automaatne import ja sidumine viitenumbri alusel.
+- **Pearaamat ja aruanded** — `sendglbatch` käsitsi kannete tegemiseks, kasumiaruananne (`getprofitloss`), bilanss (`getfinpos`), ostjate tasumata arved, KMD kontroll.
+- **Eesti maksureeglid (2026)** — käibemaks 24% / 13% / 9%, sotsiaalmaks 33%, tulumaks 22%, maksuvaba tulu 700 €, II sammas 2/4/6%, KMD ridade kaardistamine, juhatuse liikme tasu eripärad.
+- **API allkirjastamine (HMAC-SHA256)** — testitud ja valideeritud ametliku spetsifikatsiooni ning nelja avatud lähtekoodiga kliendi (Go, TS, 2× PHP) põhjal.
+- **Kinnitusnõue andmete muutmisel** — enne API päringu teele panemist kuvatakse *payload* ja oodatakse kasutaja kinnitust ("jah"). Toetab ka partii-režiimi (*batch mode*).
 
 ## Autentimine (API ID, API võti, HMAC allkiri)
 
-Iga **Merit Aktiva API** kutse kannab kolme query-parameetrit: `ApiId`, `timestamp` (UTC, `yyyyMMddHHmmss`), `signature`.
+Iga **Merit Aktiva API** päring sisaldab kolme URL-i parameetrit (*query parameter*): `ApiId`, `timestamp` (UTC, `yyyyMMddHHmmss`) ja `signature`.
 
 ```
 timestamp  = praegune UTC kell formaadis yyyyMMddHHmmss
@@ -192,61 +192,61 @@ url        = base + endpoint + "?ApiId=" + apiId
              + "&signature=" + urlencode(signature)
 ```
 
-API ID ja API võtme saad: Merit Aktiva → Seaded → API seadistus. Täielik samm-sammuline juhend [API seadistus](https://support.merit.ee/et/articles/368840-api-seadistus). Vajab Pro või Premium litsentsi.
+API ID ja API võtme genereerimiseks ava: Merit Aktiva → Seaded → API seadistus. Vaata ka samm-sammulist juhendit: [API seadistus](https://support.merit.ee/et/articles/368840-api-seadistus). API kasutamine eeldab Pro või Premium paketi olemasolu.
 
 ## Kuus oskust (skills)
 
-| Oskus | Mida teeb |
+| Oskus | Kirjeldus |
 |---|---|
-| **`merit-aktiva-core`** | Autentimine, konventsioonid, veakäsitlus. Aluse-oskus. |
-| **`merit-aktiva-masters`** | Kliendid, hankijad, kaubad, KM-koodid, kontoplaan. Nimede → GUID-ide resolveerimine. |
-| **`merit-aktiva-sales`** | Müügiarved, kreeditarved, e-arve väljastus, PDF-id. |
-| **`merit-aktiva-purchases-payments`** | Ostuarved, kuluaruanded, maksed, pangaväljavõtte import. |
-| **`merit-aktiva-ledger-reports`** | Pearaamatu kanded, aruanded, KMD kooskõlastus. |
-| **`estonian-bookkeeping`** | 2026. aasta Eesti maksureeglid — KM, tulumaks, palgamaksud, KMD koodid. |
+| **`merit-aktiva-core`** | Autentimine, API konventsioonid ja veakäsitlus. Baasoskus, millele toetuvad teised. |
+| **`merit-aktiva-masters`** | Kliendid, hankijad, artiklid, KM-koodid ja kontoplaan. Nimede vastendamine GUID-ideks. |
+| **`merit-aktiva-sales`** | Müügiarved, kreeditarved, e-arvete väljastamine ja PDF-ide genereerimine. |
+| **`merit-aktiva-purchases-payments`** | Ostuarved, kuluaruanded, maksed ja pangaväljavõtete import. |
+| **`merit-aktiva-ledger-reports`** | Pearaamatu kanded, finantsaruanded ja KMD andmete kontroll. |
+| **`estonian-bookkeeping`** | 2026. aasta Eesti maksureeglid — käibemaks, tulumaks, palgamaksud ja KMD koodid. |
 
-Lisaks **`merit-bookkeeper`** subagent partii-tööks (kviitungite hulk, kuumakse-arved, pangaväljavõte).
+Lisaks on saadaval **`merit-bookkeeper`** alamagent (*subagent*) massandmete töötlemiseks (suurem hulk tšekke, igakuised korduvad arved, mahukad pangaväljavõtted).
 
 ## Kasutusnäited
 
-- **AI raamatupidamine OÜ-le** — AI agent loeb tarnijaarveid e-mailist, otsustab kontod ja KM-koodid, kannab pärast kinnitust raamatupidamisse.
-- **ChatGPT KMD-assistent** — perioodi arvete summeerimine KMD ridade kaupa, pearaamatu vastu kontroll, lahknevuste väljatoomine enne EMTA-le esitamist.
-- **E-arve sünk** — sissetulnud e-arvete suunamine kinnitusjärjekorda ja vastutava töötaja teavitamine.
-- **Igakuised arved** — kliendinimekiri × kuumakse → 30 `sendinvoice` kutset ühe partii-kinnitusega.
-- **Pangaväljavõtte kaaspilot** — igapäevane camt.053 import + interaktiivne sobitamine sobimatutele ridadele.
+- **AI-raamatupidaja väikeettevõttele** — AI agent loeb e-kirjadest hankijate arveid, määrab õiged kulukontod ja KM-koodid ning sisestab need pärast inimese kinnitust raamatupidamisse.
+- **ChatGPT KMD-assistent** — perioodi arvete summeerimine KMD ridade lõikes, andmete võrdlemine pearaamatuga ja lahknevuste tuvastamine enne EMTA-le esitamist.
+- **E-arvete sünkroniseerimine** — sissetulevate e-arvete suunamine kinnitusringi ja vastutavate töötajate teavitamine.
+- **Igakuiste arvete masskoostamine** — kliendinimekiri × kuutasu → 30 `sendinvoice` päringut, mis saadetakse teele üheainsa koondkinnitusega.
+- **Pangaväljavõtete assistent** — igapäevane **camt.053** failide import ja interaktiivne abi tundmatute laekumiste sidumisel.
 
 ## KKK
 
 ### Mis on Merit Aktiva API?
-Ametlik [Merit Aktiva](https://www.merit.ee/) REST API. Dokumentatsioon [api.merit.ee](https://api.merit.ee/). Toetab müügiarveid, ostuarveid, klientide ja hankijate haldust, kaubaartikleid, makseid, pangaväljavõtteid, pearaamatu kandeid ja aruandeid.
+See on ametlik [Merit Aktiva](https://www.merit.ee/) REST API. Dokumentatsioon asub aadressil [api.merit.ee](https://api.merit.ee/). API toetab müügi- ja ostuarveid, klientide ning hankijate haldust, artikleid, makseid, pangaväljavõtteid, pearaamatu kandeid ja finantsaruandeid.
 
 ### Kuidas saada Merit Aktiva API võti?
-Merit Aktiva → **Seaded → API seadistus → Loo võti**. Saad `ApiId` (GUID) ja `ApiKey` (HMAC salasõna). Vt [API seadistus](https://support.merit.ee/et/articles/368840-api-seadistus). Vajab Pro või Premium litsentsi.
+Ava Merit Aktiva ja liigu: **Seaded → API seadistus → Loo võti**. Sealt saad `ApiId` (GUID) ja `ApiKey` (HMAC salasõna). Loe lähemalt juhendist: [API seadistus](https://support.merit.ee/et/articles/368840-api-seadistus). API kasutamiseks on vajalik Pro või Premium pakett.
 
 ### Kas Merit Aktival on testkeskkond?
-Ei. Ametlik FAQ kinnitab: *"Meil ei ole sandboxi. Loo testfirma — prooviversioon lubab 100 dokumenti."* Testimine käib trial-firmas, sama hostiga.
+Ei ole. Ametlik KKK ütleb: *"Meil ei ole sandboxi. Loo testfirma — prooviversioon lubab 100 dokumenti."* Testimine toimub tavalises prooviversiooni (*trial*) ettevõttes, kasutades sama API aadressi.
 
 ### Kuidas ühendada ChatGPT Merit Aktivaga?
-Selle plugina sisu töötab iga LLM-iga, kes oskab juhiseid lugeda. ChatGPT puhul kopeeri vajalikud `SKILL.md` failid süsteemiviipasse — agent suhtleb seejärel otse `api.merit.ee`-ga. Claude Code'i kasutajad saavad lihtsalt plugina paigaldada.
+Selle plugina sisu töötab iga keelemudeliga (LLM), mis suudab juhiseid järgida. ChatGPT puhul kopeeri vajalike `SKILL.md` failide sisu süsteemiviipa (*system prompt*) — seejärel oskab agent otse `api.merit.ee`-ga suhelda. Claude Code'i kasutajad saavad plugina lihtsalt käsurealt paigaldada.
 
 ### Kuidas töötab HMAC-allkiri?
-Vt [autentimise sektsiooni](#autentimine-api-id-api-võti-hmac-allkiri) ja täielikku retsepti [`skills/merit-aktiva-core/references/authentication.md`](skills/merit-aktiva-core/references/authentication.md). HMAC-SHA256 üle stringi `apiId + timestamp + body`, base64 + URL-encoded query-parameetrisse. UTC ajatempel.
+Vaata [autentimise sektsiooni](#autentimine-api-id-api-võti-hmac-allkiri) ja täielikku tehnilist kirjeldust failist [`skills/merit-aktiva-core/references/authentication.md`](skills/merit-aktiva-core/references/authentication.md). Lühidalt: tehakse HMAC-SHA256 räsiallkiri stringist `apiId + timestamp + body`, mis kodeeritakse Base64 formaati ja lisatakse URL-kodeerituna päringu parameetritesse. Ajatempel peab olema UTC ajavööndis.
 
 ### Kas saab KMD-d API kaudu esitada?
-Ei. KMD esitamine käib [emta.ee](https://www.emta.ee/) e-MTA portaali kaudu. Merit Aktiva pakub ettevalmistatud andmed, kuid ei suhtle EMTA-ga otse.
+Ei saa. KMD esitamine toimub jätkuvalt [emta.ee](https://www.emta.ee/) e-MTA portaali kaudu. Merit Aktiva API kaudu saab kätte eeltäidetud andmed, kuid tarkvara ei saada neid automaatselt EMTA-sse.
 
 ### Kas see on ametlik AS Merit Tarkvara toode?
-**Ei.** See on kogukonna plugin, ei ole AS Merit Tarkvaraga seotud. Maksumäärad ja reeglid kontrolli enne KMD/TSD esitamist [emta.ee](https://www.emta.ee/) vastu.
+**Ei.** Tegemist on kogukonna loodud pluginaga, mis ei ole AS-iga Merit Tarkvara seotud. Enne KMD/TSD esitamist kontrolli alati maksumäärad ja reeglid üle [emta.ee](https://www.emta.ee/) lehelt.
 
 ## Vastutus
 
-- Maksumäärad on viimati kontrollitud kuupäeval, mis on iga oskuse `last-verified` väljal. Eesti seadusandlus muutub sageli — kontrolli enne deklaratsioonide esitamist [emta.ee](https://www.emta.ee/) andmeid.
-- Esmase tootmiskeskkonna kasutamise eel testi trial-firmas. Oskus küsib sessiooni alguses kinnitust enne esimest kirjutamist.
-- API ID ja API võti on tundlikud — ära kunagi pane neid versioonihaldusesse ega vestlusesse.
+- Maksumäärad on viimati kontrollitud kuupäeval, mis on märgitud iga oskuse `last-verified` väljale. Kuna Eesti maksuseadusandlus võib muutuda, kontrolli andmeid enne deklaratsioonide esitamist alati [emta.ee](https://www.emta.ee/) lehelt.
+- Enne toodangukeskkonnas (*production*) kasutamist testi lahendust kindlasti prooviversiooni (*trial*) ettevõttes. Agent küsib sessiooni alguses alati kinnitust, enne kui teeb API kaudu esimese andmeid muutva päringu.
+- API ID ja API võti on konfidentsiaalsed andmed — ära kunagi lisa neid versioonihaldusesse (nt Git) ega jaga avalikes vestlustes.
 
 ## Litsents
 
-[MIT](LICENSE) · Autor: Artur · Kogukonna projekt, **mitte ametlik AS Merit Tarkvara toode**.
+[MIT](LICENSE) · Autor: Artur · Kogukonna projekt, **tegemist ei ole ametliku AS Merit Tarkvara tootega**.
 
 ---
 
