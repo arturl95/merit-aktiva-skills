@@ -1,9 +1,9 @@
 {
-  "name": "merit-aktiva-ai",
+  "name": "merit-aktiva-skills",
   "version": "0.1.0",
   "description": "Merit Aktiva for AI agents — Claude Code skills for Estonian bookkeeping, invoicing, VAT (KMD), and the Merit Aktiva REST API.",
   "author": { "name": "Artur" },
-  "homepage": "https://github.com/OWNER/merit-aktiva-ai",
-  "repository": "https://github.com/OWNER/merit-aktiva-ai",
+  "homepage": "https://github.com/arturl95/merit-aktiva-skills",
+  "repository": "https://github.com/arturl95/merit-aktiva-skills",
   "license": "MIT"
 }
