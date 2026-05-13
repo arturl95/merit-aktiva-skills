@@ -10,7 +10,7 @@ hmacKey        := ascii_bytes( apiKey )
 signatureBytes := hmac_sha256( hmacKey, dataToSign )
 signature      := base64( signatureBytes )         // standard alphabet
 url            := base + endpoint
-                  + "?ApiId="     + apiId
+                  + "?apiId="     + apiId
                   + "&timestamp=" + timestamp
                   + "&signature=" + url_encode(signature)
 ```
@@ -22,7 +22,7 @@ Rules:
 - `timestamp` format: `yyyyMMddHHmmss` (14 digits).
 - **UTC** — not Tallinn local. Older docs and a few libraries say Tallinn; the current official spec is UTC. Requests too old or in the future are rejected (~5 min skew tolerance).
 - Standard base64 (`+ / =`), then **URL-encode** before placing in the query string. `+` becomes a space otherwise.
-- Place all three of `ApiId`, `timestamp`, `signature` in the query string. Never in headers.
+- Place all three of `apiId`, `timestamp`, `signature` in the query string. Never in headers.
 - Sign the exact bytes you will POST. If you `JSON.stringify` and sign, send those same bytes — pretty-printing or re-ordering keys after signing desyncs the signature.
 
 ## Worked example
@@ -74,7 +74,7 @@ SIG_ENC=$(printf '%s' "$SIG" \
 curl -sS -X POST \
   -H "Content-Type: application/json; charset=utf-8" \
   --data "$BODY" \
-  "${BASE}/${ENDPOINT}?ApiId=${MERIT_API_ID}&timestamp=${TS}&signature=${SIG_ENC}"
+  "${BASE}/${ENDPOINT}?apiId=${MERIT_API_ID}&timestamp=${TS}&signature=${SIG_ENC}"
 ```
 
 This works for any POST-shaped endpoint. For endpoints with a real body, replace `BODY='{}'` with the JSON to send — the same string must be both signed and POSTed.

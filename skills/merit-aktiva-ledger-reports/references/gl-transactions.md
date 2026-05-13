@@ -9,22 +9,21 @@
 | `EntryRow` | array of EntryRowObject | yes | At least two rows (one debit, one credit) |
 | `Attachment` | object | no | `{ FileName, FileContent: <base64> }` — supporting document |
 | `CurrencyCode` | string(4) | no | ISO; defaults to company default |
-| `CurrencyRate` | decimal(18,7) | no | ECB if omitted (v2) |
+| `CurrencyRate` | decimal | no | ECB rate for BatchDate if omitted |
 
 ## `EntryRowObject`
 
 | Field | Type | Req | Notes |
 |---|---|---|---|
 | `AccountCode` | string(8) | yes | Must exist in chart of accounts |
-| `Debit` | decimal(12,2) | conditional | Either `Debit` or `Credit` per row, not both |
-| `Credit` | decimal(12,2) | conditional | |
+| `DepartmentCode` | string(16) | yes | Must exist in company database |
+| `Debit` | decimal(18,2) | conditional | Either `Debit` or `Credit` per row, not both |
+| `Credit` | decimal(18,2) | conditional | |
 | `Memo` | string(150) | no | Row description; printed on the journal |
-| `DepartmentCode` | string(16) | no | Must exist if supplied |
-| `ProjectCode` | string(20) | no | |
-| `CostCenterCode` | string(20) | no | |
+| `ProjectCode` | string(20) | no | Must exist if supplied |
+| `CostCenterCode` | string(20) | no | Must exist if supplied |
 | `TaxId` | GUID | no | From `gettaxes` cache, for VAT-tagged rows |
 | `VatAmount` | decimal(18,2) | **mandatory if `TaxId` set** | Forgetting it returns a 500 |
-| `Dimensions` | array | no | v2 |
 
 ## Rules
 
@@ -37,13 +36,13 @@
 ## Minimum example
 
 ```json
-POST /api/v2/sendglbatch
+POST /api/v1/sendglbatch
 {
   "DocNo": "JV-2026-001",
   "BatchDate": "20260512",
   "EntryRow": [
-    { "AccountCode": "1010", "Debit": 100.00, "Memo": "Cash in" },
-    { "AccountCode": "3000", "Credit": 100.00, "Memo": "Revenue" }
+    { "AccountCode": "1010", "DepartmentCode": "MAIN", "Debit": 100.00, "Memo": "Cash in" },
+    { "AccountCode": "3000", "DepartmentCode": "MAIN", "Credit": 100.00, "Memo": "Revenue" }
   ]
 }
 ```
@@ -51,7 +50,7 @@ POST /api/v2/sendglbatch
 ## Rich example — purchase with VAT
 
 ```json
-POST /api/v2/sendglbatch
+POST /api/v1/sendglbatch
 {
   "DocNo": "JV-2026-002",
   "BatchDate": "20260512",
@@ -90,39 +89,58 @@ For a non-EUR batch, set `CurrencyCode` and (optionally) `CurrencyRate`. The sys
 ## Listing GL batches
 
 ```json
-POST /api/v2/getglbatches
-{ "PeriodStart": "20260501", "PeriodEnd": "20260512" }
+POST /api/v1/getglbatches
+{ "PeriodStart": "20260501", "PeriodEnd": "20260512", "DateType": 0 }
 ```
 
-Returns headers only. For full details (rows):
+| Field | Type | Req | Notes |
+|---|---|---|---|
+| `PeriodStart` | YYYYMMDD | yes | |
+| `PeriodEnd` | YYYYMMDD | yes | **Max period: 3 months** |
+| `DateType` | int | yes | 0 = document date; 1 = changed date |
+
+Returns headers only (GLBId, BatchCode, No, Document, BatchDate, CurrencyCode, CurrencyRate, TotalAmount, PriceInclVat, FileExists, ChangedDate). For full details including rows:
 
 ```json
-POST /api/v2/getglbatch
-{ "Id": "<batch-guid>" }
+POST /api/v1/getglbatch
+{ "Id": "<batch-guid>", "AddAttachment": false }
 ```
 
-Or:
+| Field | Type | Req | Notes |
+|---|---|---|---|
+| `Id` | GUID | yes | Batch GUID |
+| `AddAttachment` | boolean | no | If true, includes FileName/FileContent in response |
+
+Or fetch a range with rows in one call:
 
 ```json
-POST /api/v2/getglbatchesfull
-{ "PeriodStart": "20260501", "PeriodEnd": "20260512" }
+POST /api/v1/getglbatchesfull
+{ "PeriodStart": "20260501", "PeriodEnd": "20260512", "WithLines": 1, "DateType": 0 }
 ```
 
-Returns headers + rows in one call (heavier response; rate-limit accordingly).
+| Field | Type | Req | Notes |
+|---|---|---|---|
+| `PeriodStart` | YYYYMMDD | yes | |
+| `PeriodEnd` | YYYYMMDD | yes | **Max period: 31 days** |
+| `WithLines` | int | no | 1 = include entry rows |
+| `WithCostAlloc` | int | no | 1 = include cost allocations |
+| `DateType` | int | no | 0 = document date; 1 = changed date |
+
+Returns headers + rows in one call (heavier response; rate-limit accordingly). Note the tighter 31-day window vs 3 months for `getglbatches`.
 
 ## No delete — how to reverse
 
 Post a new batch that mirrors the original with `Debit` / `Credit` swapped:
 
 ```json
-POST /api/v2/sendglbatch
+POST /api/v1/sendglbatch
 {
   "DocNo": "JV-2026-002-REV",
   "BatchDate": "20260513",
   "EntryRow": [
-    { "AccountCode": "55100", "Credit": 100.00, "Memo": "Reversal of JV-2026-002 - wrong account" },
-    { "AccountCode": "1230",  "Credit": 24.00,  "Memo": "Reversal" },
-    { "AccountCode": "21100", "Debit": 124.00,  "Memo": "Reversal" }
+    { "AccountCode": "55100", "DepartmentCode": "MAIN", "Credit": 100.00, "Memo": "Reversal of JV-2026-002 - wrong account" },
+    { "AccountCode": "1230",  "DepartmentCode": "MAIN", "Credit": 24.00,  "Memo": "Reversal" },
+    { "AccountCode": "21100", "DepartmentCode": "MAIN", "Debit": 124.00,  "Memo": "Reversal" }
   ]
 }
 ```
@@ -132,3 +150,6 @@ This is best practice for audit anyway — never edit history.
 ## Source
 
 - https://api.merit.ee/connecting-robots/reference-manual/general-ledger-transactions/creating-general-ledger-transactions/
+- https://api.merit.ee/connecting-robots/reference-manual/general-ledger-transactions/get-list-of-gl-transactions/
+- https://api.merit.ee/connecting-robots/reference-manual/general-ledger-transactions/getting-gl-transaction-details/
+- https://api.merit.ee/connecting-robots/reference-manual/general-ledger-transactions/getting-gl-transactions-full-details/

@@ -10,56 +10,31 @@
 
 User exports from Swedbank Internetbank → Statements → Format: ISO XML (camt.053) for **2026-05-05 to 2026-05-11**. Save as `stmt-2026-05-w19.xml`.
 
-## Step 2 — Base64-encode
-
-```bash
-CONTENT=$(base64 < stmt-2026-05-w19.xml | tr -d '\n')
-```
-
-Or in Python:
-
-```python
-import base64
-with open("stmt-2026-05-w19.xml", "rb") as f:
-    content_b64 = base64.b64encode(f.read()).decode("ascii")
-```
-
-## Step 3 — Show user the summary before posting
+## Step 2 — Show user the summary before posting
 
 > About to import bank statement **stmt-2026-05-w19.xml** for account `EE382200221020145685`, period 2026-05-05 to 2026-05-11. File size: 87 KB. Confirm import?
 
 Wait for "yes".
 
-## Step 4 — POST
+## Step 3 — POST
+
+Send the raw camt.053 XML as the request body (`Content-Type: application/xml`):
 
 ```
-POST /api/v2/sendbankstatement
-{
-  "BankAccountIBAN": "EE382200221020145685",
-  "FileContent": "<base64-content>",
-  "FileName": "stmt-2026-05-w19.xml"
-}
+POST /api/v1/sendcamt53
+<body: raw contents of stmt-2026-05-w19.xml>
 ```
 
-Response:
-
-```json
-{
-  "ImportId": "<guid>",
-  "LinesTotal": 27,
-  "LinesMatched": 22,
-  "LinesUnmatched": 5
-}
+Response is a plain-text Estonian string, e.g.:
+```
+Impordi tulemus: 27 kirjet, 22 sobitatud, 5 sobitamata.
 ```
 
-## Step 5 — Inspect unmatched
+Merit auto-matches on `RefNo` (viitenumber) and counterparty IBAN. Matched lines create payments automatically; the 5 unmatched lines must be handled manually.
 
-```
-POST /api/v2/getpaymentimports
-{ "PeriodStart": "20260505", "PeriodEnd": "20260511" }
-```
+## Step 4 — Identify unmatched lines
 
-The response includes per-line details. Filter for the 5 unmatched.
+Merit does not expose an API endpoint to list unmatched import lines. Use `getpayments` with `DateType: 1` (changed-date) and the import window to see what was auto-posted, then cross-reference the original XML to identify the 5 that are missing.
 
 For each unmatched line, common shapes:
 
@@ -71,13 +46,13 @@ For each unmatched line, common shapes:
 | 2026-05-10 | DBIT | 50.00 | (employee) | (empty) | Reimbursement |
 | 2026-05-11 | CRDT | 12.50 | (unknown) | (empty) | Test transfer |
 
-## Step 6 — Propose matches
+## Step 5 — Propose matches
 
 For each unmatched line, search local data:
 
 ```
-POST /api/v2/getinvoices         { "PaidStatus": 0 }        # unpaid sales invoices
-POST /api/v2/getpurchaseinvoices { "PaidStatus": 0 }        # unpaid purchase invoices
+POST /api/v2/getinvoices      { "PaidStatus": 0 }   # unpaid sales invoices
+POST /api/v1/getpurchorders   { "UnPaid": true }     # unpaid purchase invoices
 ```
 
 Then for each unmatched line:
@@ -88,13 +63,13 @@ Then for each unmatched line:
 4. **Employee €50.00 DBIT** — no open invoice match; this is likely a payroll-side reimbursement that should go to GL, not as a payment. Show user.
 5. **€12.50 CRDT (unknown counterparty)** — likely test/junk; flag for user judgement.
 
-## Step 7 — Show user a proposed reconciliation table
+## Step 6 — Show user a proposed reconciliation table
 
 ```
 Line  | Date       | Amount  | Match                          | Action
 ------|------------|---------|--------------------------------|--------
   3   | 2026-05-08 | +992.00 | Inv 2026-0042 (Acme OÜ)        | sendpayment
-  6   | 2026-05-09 | -75.50  | Inv LP-456 (Logistika Pluss)   | sendpurchasepayment
+  6   | 2026-05-09 | -75.50  | Inv LP-456 (Logistika Pluss)   | sendPaymentV
   9   | 2026-05-06 | +100.00 | (none — no open invoice)        | manual decision
  11   | 2026-05-10 | -50.00  | (none — likely reimbursement)   | manual decision
  19   | 2026-05-11 | +12.50  | (none — unknown counterparty)   | manual decision
@@ -106,14 +81,14 @@ Ask the user:
 - For line 11: post to GL as expense, or to expense-claim subledger?
 - For line 19: write off or hold?
 
-## Step 8 — Execute approved matches
+## Step 7 — Execute approved matches
 
 After user confirms lines 3 and 6:
 
 ```
 POST /api/v2/sendpayment
 {
-  "Customer": { "Id": "<acme-id>" },
+  "CustomerName": "Acme OÜ",
   "InvoiceNo": "2026-0042",
   "PaymentDate": "20260508",
   "Amount": 992.00,
@@ -124,10 +99,10 @@ POST /api/v2/sendpayment
 ```
 
 ```
-POST /api/v2/sendpurchasepayment
+POST /api/v2/sendPaymentV
 {
-  "Vendor": { "Id": "<logistika-id>" },
-  "InvoiceNo": "LP-456",
+  "VendorName": "OÜ Logistika Pluss",
+  "BillNo": "LP-456",
   "PaymentDate": "20260509",
   "Amount": 75.50,
   "IBAN": "EE382200221020145685",
@@ -135,17 +110,17 @@ POST /api/v2/sendpurchasepayment
 }
 ```
 
-## Step 9 — Handle the leftovers
+## Step 8 — Handle the leftovers
 
 For line 9 (€100 from John Doe): if no open invoice and no clear assignment, two options:
 - Record as prepayment via `sendprepayment` linked to John Doe (if a vendor/customer record exists), to be settled later.
 - Post to a "to-investigate" GL account via `sendglbatch` and follow up.
 
-For line 11 (€50 employee reimbursement): post a `sendpurchinvoice` with `ExpenseClaim: true` after gathering the receipts from the employee, then `sendpurchasepayment` to clear.
+For line 11 (€50 employee reimbursement): post a `sendpurchinvoice` with `ExpenseClaim: true` after gathering the receipts from the employee, then `sendPaymentV` to clear.
 
 For line 19 (€12.50 test): if confirmed junk, post via `sendglbatch` to a suspense account (e.g. 1599 — Other receivables / suspense), then write off after investigation.
 
-## Step 10 — Final state
+## Step 9 — Final state
 
 After reconciliation:
 - All 27 statement lines either auto-matched or manually handled.
@@ -154,8 +129,8 @@ After reconciliation:
 
 ## Common pitfalls
 
-- **Double-imports**: don't re-import a statement that's already been processed. Merit may create duplicate payments. Check `getpaymentimports` first.
-- **Wrong IBAN**: the `BankAccountIBAN` in the request must match an account configured in Merit (Settings → Banks). Mismatched IBAN rejects the entire file.
+- **Double-imports**: don't re-import a statement that's already been processed. Merit may create duplicate payments. Cross-check `getpayments` for the period before posting.
+- **Wrong IBAN**: the bank account IBAN in the XML must match an account configured in Merit (Settings → Banks). Mismatched IBAN rejects the entire file.
 - **Customer changed name**: auto-match by IBAN+amount might fail if a customer's stored IBAN changed. Surface as unmatched and update the customer record.
 
 ## Cross-references

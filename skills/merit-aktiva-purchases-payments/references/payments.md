@@ -7,15 +7,17 @@ Merit Aktiva splits payments into four distinct endpoints depending on direction
 | Endpoint | Direction | Use case |
 |---|---|---|
 | `sendpayment` | Incoming (customer pays your sales invoice) | Full payment of a known sales invoice |
-| `sendpurchasepayment` | Outgoing (you pay a vendor's invoice) | Full payment of a known purchase invoice |
+| `sendPaymentV` | Outgoing (you pay a vendor's invoice) | Full payment of a known purchase invoice |
 | `sendprepayment` | Either direction | Customer/vendor prepays; not yet linked to an invoice |
 | `sendsettlement` | Either direction | Allocate an existing prepayment or credit to specific invoices |
+
+> **Important:** The purchase-invoice payment endpoint is `sendPaymentV` (capital P and V), **not** `sendpurchasepayment`. The latter does not exist in the Merit API.
 
 ## `POST /api/v2/sendpayment` — customer pays your sales invoice
 
 ```json
 {
-  "Customer": { "Id": "<customer-guid>" },
+  "CustomerName": "Acme OÜ",
   "InvoiceNo": "2026-0042",
   "PaymentDate": "20260512",
   "Amount": 992.00,
@@ -28,37 +30,49 @@ Merit Aktiva splits payments into four distinct endpoints depending on direction
 
 | Field | Type | Req | Notes |
 |---|---|---|---|
-| `Customer.Id` (or full Customer) | GUID | yes | |
-| `InvoiceNo` | string | yes | Existing sales-invoice number |
+| `CustomerName` | string(150) | yes | Must match an existing customer in Merit |
+| `InvoiceNo` | string(35) | yes | Existing sales-invoice number |
 | `PaymentDate` | YYYYMMDD | yes | |
 | `Amount` | decimal(18,2) | yes | **Must equal invoice total exactly.** |
-| `IBAN` | string | yes | Must match a payment method configured in Merit (Settings → Banks) |
+| `IBAN` | string(50) | optional | Must match a payment method configured in Merit (Settings → Banks) |
 | `BankId` | GUID | optional | Alternative to `IBAN` |
-| `CustomerName` | string | optional | Must match the customer's `Name` if supplied |
-| `RefNo` | string | optional | Bank-side reference number |
-| `CurrencyCode` | string | optional | Required if non-EUR |
-| `CurrencyRate` | decimal | optional | ECB if omitted (v2) |
+| `RefNo` | string(36) | optional | Bank-side reference number |
+| `CurrencyCode` | string | optional (v2) | Required if non-local currency |
+| `CurrencyRate` | decimal(18,7) | optional (v2) | ECB if omitted |
 
-## `POST /api/v2/sendpurchasepayment` — you pay a vendor
-
-Same shape, swap `Customer` for `Vendor` and `InvoiceNo` is the vendor's invoice number you recorded via `sendpurchinvoice`.
+## `POST /api/v2/sendPaymentV` — you pay a vendor's purchase invoice
 
 ```json
 {
-  "Vendor": { "Id": "<vendor-guid>" },
-  "InvoiceNo": "DE-2026-INV-7788",
+  "VendorName": "Hetzner Online GmbH",
+  "BillNo": "DE-2026-INV-7788",
   "PaymentDate": "20260512",
   "Amount": 100.00,
   "IBAN": "EE382200221020145685",
+  "BankId": "<bank-guid>",
   "CurrencyCode": "EUR"
 }
 ```
 
+| Field | Type | Req | Notes |
+|---|---|---|---|
+| `BankId` | GUID | yes | Bank identifier |
+| `IBAN` | string(50) | yes | Bank account IBAN |
+| `VendorName` | string(150) | yes | Must match vendor name in Merit |
+| `PaymentDate` | YYYYMMDD | yes | Format: YYYYmmddHHii |
+| `BillNo` | string(35) | yes | The vendor's invoice number as recorded via `sendpurchinvoice` |
+| `RefNo` | string(36) | yes | Reference number |
+| `Amount` | decimal(18,2) | yes | |
+| `CurrencyCode` | string | conditional | Required for v2 if non-local currency |
+| `CurrencyRate` | decimal(18,7) | optional | ECB if omitted |
+
 ## The "no partials" rule
 
-`sendpayment` and `sendpurchasepayment` require `Amount == invoice_total`. If you try to pay €500 of a €1,000 invoice via `sendpayment`, the API rejects.
+`sendpayment` and `sendPaymentV` require `Amount == invoice_total`. If you try to pay €500 of a €1,000 invoice via `sendpayment`, the API rejects.
 
 For partials:
+
+> **Caution:** `sendprepayment` and `sendsettlement` are **not listed** in the official Merit API reference manual. They may exist as undocumented or internal endpoints, or the official partial-payment flow may differ. Treat the below pattern as unverified until confirmed against a live Merit instance.
 
 1. **Use `sendprepayment` to record the cash receipt** (no invoice link yet):
 
@@ -98,19 +112,29 @@ The prepayment-then-settle pattern is also the right way to handle:
 
 ```json
 POST /api/v2/getpayments
-{ "PeriodStart": "20260501", "PeriodEnd": "20260512" }
+{
+  "PeriodStart": "20260501",
+  "PeriodEnd": "20260512",
+  "PaymentType": 0,
+  "BankId": "<bank-guid>",
+  "DateType": 0
+}
 ```
 
-Returns array with `PaymentId`, `PaymentDate`, `Amount`, `InvoiceNo`, `CustomerId` / `VendorId`, `RefNo`, `IBAN`, status.
+> Period length max 3 months. `DateType`: 0 = DocumentDate, 1 = ChangedDate.
+
+Response fields include: `PIHId`, `BankName`, `CounterPartType`, `CounterPartName`, `CurrencyCode`, `CurrencyRate`, `DocumentDate`, `DocumentNo`, `Direction`, `Amount`, `CounterPartId`, `EInvSentDate`. v2 also includes: `DocId`, `ChangedDate`, `PaymAPIDetails` (object with `PaymId`, `DocNo`, `DocAmount`, `PaidAmount`, `CurrencyCode`, `CurrencyRate`, `DocId`).
 
 ## `getpaymenttypes`
 
 ```json
 POST /api/v2/getpaymenttypes
-{}
+{ "Type": 1 }
 ```
 
-Returns configured payment methods (bank accounts, cash, card). Cache like taxes and accounts.
+`Type`: 1 = purchases, 2 = expense reports, 3 = sales.
+
+Response fields: `Id` (GUID), `Name`, `CurrencyCode`, `SourceType` (1 = cash/bank; 2 = reporting entities; 3 = GL account), `BankType`. Cache like taxes and accounts.
 
 ## Deletion
 

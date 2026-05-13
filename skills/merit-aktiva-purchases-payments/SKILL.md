@@ -30,14 +30,14 @@ The AP side of Merit Aktiva — purchase invoices, expense claims, payments, and
 POST /api/v2/sendpurchinvoice
 {
   "Vendor": { "Id": "<vendor-guid>" },
-  "DocNo": "VEN-INV-2025-A4321",
+  "BillNo": "VEN-INV-2025-A4321",
   "DocDate": "20260508",
   "TransactionDate": "20260508",
   "DueDate": "20260522",
   "CurrencyCode": "EUR",
   "InvoiceRow": [
     {
-      "Description": "AWS hosting May 2026",
+      "Item": { "Code": "AWSHOST", "Description": "AWS hosting May 2026", "Type": 2 },
       "Quantity": 1,
       "Price": 420.50,
       "GLAccountCode": "55100",
@@ -51,25 +51,27 @@ POST /api/v2/sendpurchinvoice
 
 Notes:
 
-- `DocNo` is the **vendor's** invoice number (the number they printed on it), not your own counter.
-- `Description` on the row substitutes for `Item.Description` if you're not referencing a stored item.
+- `BillNo` is the **vendor's** invoice number (the number they printed on it), not your own counter. The field name is `BillNo`, not `DocNo`.
+- Row-level descriptions go inside the `Item` sub-object (`Item.Description`). There is no standalone `Description` field on `InvoiceRowObject`.
 - `GLAccountCode` on the row routes the expense to the right account; without it, Merit uses the item's default purchase account or a tenant-wide default.
 - For reverse-charge VAT cases, the `TaxId` is the dedicated reverse-VAT code from `gettaxes` (typically `EL24` prefix). Merit auto-generates the offsetting input/output VAT journal entries.
 
 ## Expense claim
 
-Add `ExpenseClaim: true` and supply the employee (using a vendor record of `VendorType: 1` representing the employee, or per Merit configuration):
+Add `ExpenseClaim: true` and supply the employee (using a vendor record representing the employee):
 
 ```json
 {
   "Vendor": { "Id": "<employee-vendor-guid>" },
-  "DocNo": "EXP-2026-05-Mari",
+  "BillNo": "EXP-2026-05-Mari",
   "DocDate": "20260512",
   "ExpenseClaim": true,
   "InvoiceRow": [
-    { "Description": "Taxi to client meeting", "Quantity": 1, "Price": 12.00,
+    { "Item": { "Code": "TAXI", "Description": "Taxi to client meeting", "Type": 2 },
+      "Quantity": 1, "Price": 12.00,
       "GLAccountCode": "55200", "TaxId": "<24pct-tax-guid>" },
-    { "Description": "Coffee with client",     "Quantity": 1, "Price":  6.50,
+    { "Item": { "Code": "REPR", "Description": "Coffee with client", "Type": 2 },
+      "Quantity": 1, "Price": 6.50,
       "GLAccountCode": "60800", "TaxId": "<24pct-tax-guid>" }
   ],
   "TaxAmount": [{ "TaxId": "<24pct-tax-guid>", "Amount": 4.44 }],
@@ -79,41 +81,48 @@ Add `ExpenseClaim: true` and supply the employee (using a vendor record of `Vend
 
 The second line falls under representation costs (account 6080) — note that representation is tax-free up to €50/month + 2% of payroll (see `estonian-bookkeeping/references/corporate-tax.md`).
 
-## Approval queue — `sendpurchinvoiceforapproval`
+## Approval queue — `sendpurchorder`
 
 Same payload, lands in the company's approval queue rather than posting directly to the ledger. Use for workflows where a manager must approve before the invoice books:
 
 ```
-POST /api/v2/sendpurchinvoiceforapproval
+POST /api/v2/sendpurchorder
 { ...same payload as sendpurchinvoice... }
 ```
 
-Once approved in the Merit UI (or via API approval endpoints), the invoice posts automatically. Until approved it doesn't affect P&L or AP balances.
+> **Note:** The correct endpoint is `sendpurchorder`, **not** `sendpurchinvoiceforapproval`. The latter does not exist in the Merit API.
+
+Once approved in the Merit UI, the invoice posts automatically. Until approved it doesn't affect P&L or AP balances.
 
 ## Payment rules
 
-### `sendpayment` (for sales invoices) and `sendpurchasepayment` (for purchase invoices)
+### `sendpayment` (for sales invoices) and `sendPaymentV` (for purchase invoices)
 
 ```json
-POST /api/v2/sendpurchasepayment
+POST /api/v2/sendPaymentV
 {
-  "Vendor": { "Id": "<vendor-guid>" },
-  "InvoiceNo": "VEN-INV-2025-A4321",
+  "VendorName": "Hetzner Online GmbH",
+  "BillNo": "VEN-INV-2025-A4321",
   "PaymentDate": "20260512",
   "Amount": 420.50,
   "IBAN": "EE382200221020145685",
+  "BankId": "<bank-guid>",
   "CurrencyCode": "EUR"
 }
 ```
 
+> **Note:** The purchase-invoice payment endpoint is `sendPaymentV` (capital P and V), **not** `sendpurchasepayment`. The invoice number field is `BillNo` (not `InvoiceNo`). The vendor is identified by `VendorName` (not a `Vendor.Id` object).
+
 **Cast-iron rules:**
 
-1. **`Amount` must equal the invoice total.** No partials via `sendpayment` / `sendpurchasepayment`. For partials, use `sendprepayment` (prepayment booking, later settled) or `sendsettlement` (link existing payment to existing invoice with a specific amount).
+1. **`Amount` must equal the invoice total.** No partials via `sendpayment` / `sendPaymentV`. For partials, use `sendprepayment` (prepayment booking, later settled) or `sendsettlement` (link existing payment to existing invoice with a specific amount).
 2. **`IBAN` must match a payment method configured in Merit.** Configure payment methods (bank accounts, cash) via UI before first call. Mismatched IBAN is rejected.
-3. **Mismatched customer/vendor name is rejected.** Always supply the right `Id`.
+3. **Mismatched vendor name is rejected.** Supply `VendorName` exactly as it appears in Merit.
 4. **No free deletion.** `deletepayment` works only for payments without GL postings or downstream relations. For most cases, post a reversing payment instead.
 
 ### Partial payments
+
+> **Caution:** `sendprepayment` and `sendsettlement` are **not listed** in the official Merit API reference manual (as of 2026-05-12). Treat this pattern as unverified until confirmed against a live Merit instance.
 
 ```json
 POST /api/v2/sendprepayment
@@ -140,28 +149,26 @@ POST /api/v2/sendsettlement
 
 ## Bank statement import
 
-```json
-POST /api/v2/sendbankstatement
-{
-  "BankAccountIBAN": "EE382200221020145685",
-  "FileContent": "<base64-of-camt.053-xml>",
-  "FileName": "stmt-2026-05-12.xml"
-}
+```
+POST /api/v2/sendcamt53
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  ...camt.053 XML content...
+</Document>
 ```
 
-The XML must be **ISO 20022 camt.053** — the format that all Estonian banks (Swedbank, SEB, LHV, Luminor) have used since 2018. Download it from the bank's online business banking under "Statements / Pangaväljavõtted".
+> **Note:** The endpoint is `sendcamt53` (not `sendbankstatement`). The body is **raw XML**, not a JSON object. Do not base64-encode or wrap in JSON.
+
+The XML must be **ISO 20022 camt.053** (schema versions 001.02 or 001.10) — the format all Estonian banks have used since 2018. Download it from the bank's online business banking under "Statements / Pangaväljavõtted".
 
 Merit auto-matches statement lines to outstanding invoices by:
 - **`RefNo`** (Estonian viitenumber / reference number) — primary match.
 - Customer/vendor IBAN — secondary.
 - Amount + date proximity — last resort.
 
-Unmatched lines surface as "to-be-reconciled" entries in the Merit UI. The API doesn't currently expose a callback for unmatched lines; poll `getpaymentimports` to inspect status:
-
-```json
-POST /api/v2/getpaymentimports
-{ "PeriodStart": "20260501", "PeriodEnd": "20260512" }
-```
+Unmatched lines surface as "to-be-reconciled" entries in the Merit UI. Use `getpayments` with `DateType: 1` to poll for newly-created payment records after an import.
 
 ## Confirmation guardrail
 
@@ -171,13 +178,13 @@ Show the payload, summarise:
 
 Wait for explicit confirmation before POST.
 
-For bank statement imports, show the count of lines and the date range, then confirm. Per-line reconciliation requires its own confirmation pass before any `sendpayment` / `sendpurchasepayment` for unmatched lines.
+For bank statement imports, show the count of lines and the date range, then confirm. Per-line reconciliation requires its own confirmation pass before any `sendpayment` / `sendPaymentV` for unmatched lines.
 
 ## When to read each reference
 
-- [purchase-invoices.md](references/purchase-invoices.md) — full `sendpurchinvoice` schema, reverse-charge bookings, approval queue mechanics.
-- [payments.md](references/payments.md) — `sendpayment` / `sendpurchasepayment` / `sendprepayment` / `sendsettlement` with worked examples.
-- [bank-statement-import.md](references/bank-statement-import.md) — camt.053 structure, auto-match logic, reconciliation workflow.
+- [purchase-invoices.md](references/purchase-invoices.md) — full `sendpurchinvoice` schema, reverse-charge bookings, approval queue mechanics (`sendpurchorder`).
+- [payments.md](references/payments.md) — `sendpayment` / `sendPaymentV` / `sendprepayment` / `sendsettlement` with worked examples.
+- [bank-statement-import.md](references/bank-statement-import.md) — `sendcamt53` raw-XML format, auto-match logic, reconciliation workflow.
 
 ## Cross-references
 

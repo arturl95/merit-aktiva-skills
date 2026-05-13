@@ -61,7 +61,7 @@ See [sendinvoice-schema.md](references/sendinvoice-schema.md) for every field an
 1. **Round each row to 2 decimals before summing.** Server validates `TaxAmount` and `TotalAmount` against the sum of rounded row totals. Half-cent drift on a multi-row invoice will reject.
 2. **`TaxId` is required on every row.** Even 0% lines. Pull the right GUID from the `gettaxes` cache.
 3. **Different VAT rates need different item codes.** KMD INF reconciliation otherwise fails. If you have one item being sold under both domestic 24% and intra-EU 0%, register two `Code`s (e.g. `CONSULT-HR` and `EU-CONSULT-HR`).
-4. **No invoice update.** Delete (`deleteinvoice`) and recreate (`sendinvoice`).
+4. **No invoice update.** Delete (`POST /api/v1/deleteinvoice` with `{ "Id": "<invoice-guid>" }`) and recreate (`sendinvoice`).
 5. **`InvoiceNo` must be unique.** There is no server-side locking and no "next number" endpoint. Track your own counter. For high-concurrency, use a UUID-prefixed scheme (e.g. `INV-2026-<short-uuid>`).
 
 ## Confirmation guardrail
@@ -93,9 +93,11 @@ For Apix/Fitek aggregators, set `ApixEInv` on the customer. B2G e-invoicing is m
 ## PDFs and email
 
 ```json
-POST /api/v2/getinvoicepdf
+POST /api/v2/getsalesinvpdf
 { "Id": "<invoice-guid>" }
 ```
+
+Optional: `"DelivNote": true` returns the invoice without prices (delivery note layout).
 
 Response: `{ "FileName": "...", "FileContent": "<base64-pdf>" }`.
 
@@ -111,18 +113,29 @@ See [invoice-pdf-and-email.md](references/invoice-pdf-and-email.md) for attachin
 ## Listing and incremental sync
 
 ```json
-POST /api/v2/getinvoices
-{ "PeriodStart": "20260101", "PeriodEnd": "20260512", "UpdatedDate": null }
+POST /api/v1/getinvoices
+{ "PeriodStart": "20260101", "PeriodEnd": "20260512", "UnPaid": false, "DateType": 0 }
 ```
 
-Set `UpdatedDate` to the last sync's high-water mark to fetch only invoices changed since. 500-row cap per response — narrow the window if you hit it.
+Also available as `POST /api/v2/getinvoices` (adds dimensions fields in the response) and `POST /api/v2/getinvoices2` (filter by `InvNo`, `CustName`, or `CustId` instead of period).
+
+`DateType`: 0 = filter by document date (default), 1 = filter by changed date. Use `DateType: 1` for incremental sync — set `PeriodStart`/`PeriodEnd` to a window covering changes since the last sync. The period cannot exceed 3 months. 500-row cap per response — narrow the window if you hit it.
+
+## Invoice detail lookup
+
+```json
+POST /api/v2/getinvoice
+{ "Id": "<invoice-guid>" }
+```
+
+Optional: `"AddAttachment": true` includes any attached file in the response. Returns header, line rows, and payments arrays. See API docs for the full response shape.
 
 ## When to read each reference
 
 - [sendinvoice-schema.md](references/sendinvoice-schema.md) — full v2 schema, every field, three examples.
 - [credit-invoices.md](references/credit-invoices.md) — credit-note pattern with stock-item gotcha.
 - [e-invoicing.md](references/e-invoicing.md) — operator routing, GLNCode/PartyCode/ApixEInv, B2G vs B2B.
-- [invoice-pdf-and-email.md](references/invoice-pdf-and-email.md) — `getinvoicepdf`, `sendinvoicebyemail`, attaching custom PDFs.
+- [invoice-pdf-and-email.md](references/invoice-pdf-and-email.md) — `getsalesinvpdf`, `sendinvoicebyemail`, attaching custom PDFs.
 
 ## Cross-references
 

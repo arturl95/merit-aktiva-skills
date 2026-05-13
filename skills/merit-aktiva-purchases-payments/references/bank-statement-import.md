@@ -1,6 +1,6 @@
 # Bank statement import (camt.053)
 
-Merit Aktiva imports bank statements in **ISO 20022 camt.053** XML — the format every Estonian bank has used since 2018. The endpoint is `sendbankstatement`; Merit then auto-matches lines to open invoices.
+Merit Aktiva imports bank statements in **ISO 20022 camt.053** XML — the format every Estonian bank has used since 2018. The endpoint is `sendcamt53`; Merit then auto-matches lines to open invoices.
 
 ## Where to get the file
 
@@ -15,37 +15,31 @@ For high-volume needs, all four banks offer **automated daily push** via FIDAVIS
 
 ## The endpoint
 
-```json
-POST /api/v2/sendbankstatement
-{
-  "BankAccountIBAN": "EE382200221020145685",
-  "FileContent": "<base64-encoded-camt.053-xml>",
-  "FileName": "stmt-2026-05-12.xml"
-}
+```
+POST /api/v2/sendcamt53
+Content-Type: application/xml (or text/xml)
+
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  ...camt.053 XML content...
+</Document>
 ```
 
-| Field | Type | Req | Notes |
-|---|---|---|---|
-| `BankAccountIBAN` | string | yes | The IBAN whose statement is being imported. Must match an account in Merit (Settings → Banks). |
-| `FileContent` | base64 string | yes | The entire XML file, base64-encoded. |
-| `FileName` | string | recommended | For audit/diagnostic. |
+The request body is the **raw XML file** — not a JSON wrapper. Supported schema versions: `camt.053.001.02` and `camt.053.001.10`.
 
-Response: `{ "ImportId": "...", "LinesTotal": 27, "LinesMatched": 22, "LinesUnmatched": 5 }`.
+> **Important:** The endpoint name is `sendcamt53`, not `sendbankstatement`. The body is raw XML, not a JSON object with a `FileContent` base64 field. The Merit auth signature is still appended to the URL as query parameters (same as all other endpoints).
+
+Response: a plain-text Estonian message such as `"Imporditi 22 makserida (ridu kokku 27)"` (imported 22 payment rows, 27 total). There is no structured JSON response with `ImportId`, `LinesTotal`, etc.
 
 ## Auto-matching logic
 
 Merit attempts to match each statement line to an open invoice in this order:
 
-1. **`RefNo` (viitenumber)** — the Estonian reference-number standard. If the bank line carries a viitenumber matching an outstanding invoice's `RefNo`, it auto-matches and posts a `sendpayment` / `sendpurchasepayment` automatically. This is the highest-confidence path.
+1. **`RefNo` (viitenumber)** — the Estonian reference-number standard. If the bank line carries a viitenumber matching an outstanding invoice's `RefNo`, it auto-matches and posts a `sendpayment` / `sendPaymentV` automatically. This is the highest-confidence path.
 2. **Counterparty IBAN + amount** — if the line has the customer/vendor's known IBAN and the amount matches an outstanding invoice within ±€0.05, it matches.
 3. **Amount + date proximity** — last resort; the line is suggested but flagged as needing manual confirmation.
 
-Lines with no match end up as **"to reconcile"** entries in the Merit UI (Bank → Reconcile). The API does not currently expose these as a structured "unmatched" list; poll the bank-import history via `getpaymentimports`:
-
-```json
-POST /api/v2/getpaymentimports
-{ "PeriodStart": "20260501", "PeriodEnd": "20260512" }
-```
+Lines with no match end up as **"to reconcile"** entries in the Merit UI (Bank → Reconcile). The API does not expose a structured unmatched-lines list. Use `getpayments` with `DateType: 1` (ChangedDate) to poll for newly-created payment records after an import.
 
 ## Workflow for an AI agent reconciler
 
@@ -54,17 +48,17 @@ A typical agent flow:
 ```
 1. Download camt.053 from the bank (or accept a file path from the user).
 2. Validate it parses as XML and contains at least one BkToCstmrStmt.
-3. Base64-encode the file content.
-4. POST /api/v2/sendbankstatement.
-5. Inspect ImportId, LinesMatched, LinesUnmatched.
-6. If unmatched > 0:
-     a. Fetch the import via getpaymentimports.
+3. POST /api/v2/sendcamt53 with the raw XML as the request body.
+4. Parse the plain-text response to get imported count vs total count.
+5. If unmatched lines exist (total > imported):
+     a. In the Merit UI (Bank → Reconcile), unmatched lines appear for manual review.
+        The API does not expose a structured unmatched-lines list.
      b. For each unmatched line, propose a match based on:
         - Counterparty name fuzzy-matched against getcustomers / getvendors.
-        - Amount + date matched against getinvoices (open) and getpurchaseinvoices (open).
+        - Amount + date matched against getinvoices (open) and getpurchorders (open).
      c. Show proposals to the user as a table.
-     d. On user confirmation, post sendpayment / sendpurchasepayment for each accepted match.
-7. Report final state.
+     d. On user confirmation, post sendpayment / sendPaymentV for each accepted match.
+6. Report final state.
 ```
 
 ## XML structure crash course
@@ -102,34 +96,45 @@ camt.053 is a structured bank statement. The relevant nodes for matching:
 
 The `<CdtrRefInf>/<Ref>` element is the viitenumber that drives Merit's primary auto-match. If your customer-facing invoices include the viitenumber on the PDF (Merit does this automatically), >90% of inbound payments match without manual intervention.
 
-## Encoding the file
+## Sending the file
+
+The XML is posted as a raw body — no base64 encoding or JSON wrapper needed:
 
 ```python
-import base64
+import requests, hashlib, hmac, time, json
+
+# Build the Merit auth params (same pattern as all Merit API calls)
+# ... see merit-aktiva-core for the full signature construction ...
+
 with open("stmt-2026-05-12.xml", "rb") as f:
-    content_b64 = base64.b64encode(f.read()).decode("ascii")
+    xml_bytes = f.read()
+
+response = requests.post(
+    f"https://aktiva.merit.ee/api/v2/sendcamt53?ApiId=...&timestamp=...&signature=...",
+    data=xml_bytes,
+    headers={"Content-Type": "application/xml"}
+)
+print(response.text)  # "Imporditi 22 makserida (ridu kokku 27)"
 ```
 
-Then include in the request body:
+For shell:
 
-```python
-{
-    "BankAccountIBAN": "EE382200221020145685",
-    "FileContent": content_b64,
-    "FileName": "stmt-2026-05-12.xml"
-}
+```bash
+curl -X POST \
+  "https://aktiva.merit.ee/api/v2/sendcamt53?ApiId=...&timestamp=...&signature=..." \
+  --data-binary @stmt-2026-05-12.xml \
+  -H "Content-Type: application/xml"
 ```
-
-For shell, use `base64 < stmt-2026-05-12.xml | tr -d '\n'`.
 
 ## Common pitfalls
 
-1. **Wrong IBAN** — the `BankAccountIBAN` must exist in Merit's Banks config; otherwise the import is rejected.
-2. **Mixed periods** — Merit expects the file's date range to align with its expected import cadence. Importing a 6-month-old statement may re-create payments that are already in the ledger; check for duplicates.
-3. **Non-camt.053 formats** — Merit also accepts ISO 20022 camt.054 (debit/credit notification) and the legacy MT940 format, but support varies. Stick to camt.053 for reliability.
-4. **File too large** — daily statements are tiny; monthly statements rarely exceed 200 KB after base64 encoding. If you're pushing 5 MB+, you're probably importing a wrong file.
+1. **Wrong endpoint name** — use `sendcamt53`, not `sendbankstatement`. The latter does not exist.
+2. **JSON body instead of raw XML** — the body must be raw XML, not a JSON object with a `FileContent` base64 field. Wrong content type or body format results in rejection.
+3. **Mixed periods** — Merit expects the file's date range to align with its expected import cadence. Importing a 6-month-old statement may re-create payments that are already in the ledger; check for duplicates.
+4. **Non-camt.053 formats** — Merit also accepts ISO 20022 camt.053.001.10 (newer schema). Stick to camt.053.001.02 or camt.053.001.10 for reliability; other formats are not guaranteed.
+5. **File too large** — daily statements are tiny; monthly statements are small. If you're pushing megabytes, you're probably sending the wrong file.
 
 ## Source
 
-- https://api.merit.ee/connecting-robots/reference-manual/payments/ (bank-statement subsection)
+- https://api.merit.ee/connecting-robots/reference-manual/bank-statement/
 - ISO 20022 camt.053 — https://www.iso20022.org/iso-20022-message-definitions

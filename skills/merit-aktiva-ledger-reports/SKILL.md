@@ -1,6 +1,6 @@
 ---
 name: merit-aktiva-ledger-reports
-description: Create general-ledger journal entries (sendglbatch) and pull P&L, balance, customer-debt, sales, and inventory reports from Merit Aktiva. Use for month-end adjustments and reporting.
+description: Create general-ledger journal entries (sendglbatch) and pull P&L (getprofitrep), balance sheet (getbalancerep), customer-debt (getcustdebtrep), sales (getsalesrep), and inventory reports from Merit Aktiva. Use for month-end adjustments and reporting.
 last-verified: 2026-05-12
 ---
 
@@ -17,26 +17,29 @@ The general-ledger and reporting layer. Direct journal entry for adjustments tha
 ## GL rules (cast-iron)
 
 1. **EntryRow must balance.** Sum of `Debit` across rows must equal sum of `Credit`. Server validates; unbalanced batch is rejected.
-2. **`AccountCode` and `DepartmentCode` must exist.** Pull from `merit-aktiva-masters` (`getaccounts`, `getdepartments`).
+2. **`AccountCode` and `DepartmentCode` are both required on every EntryRow.** Both must exist in the company database. Pull valid codes from `merit-aktiva-masters` (`getaccounts`, `getdepartments`).
 3. **`VatAmount` is mandatory whenever `TaxId` is set on a row.** Forgetting it returns a misleading "internal error" 500.
 4. **500-row cap per `sendglbatch`.** Split large batches.
 5. **No GL row deletion.** Reverse with a new batch (swap Debit/Credit on the rows that need to be undone).
+6. **All GL and report endpoints are v1 or v2 as specified.** `sendglbatch`, `getglbatches`, `getglbatch`, `getglbatchesfull` are all **v1**. Report endpoints vary (see references/reports.md).
 
 ## `sendglbatch` happy path
 
 ```json
-POST /api/v2/sendglbatch
+POST /api/v1/sendglbatch
 {
   "DocNo": "JV-2026-05-001",
   "BatchDate": "20260512",
   "EntryRow": [
-    { "AccountCode": "1010", "Debit": 100.00,  "Memo": "Cash in" },
-    { "AccountCode": "3000", "Credit": 100.00, "Memo": "Revenue" }
+    { "AccountCode": "1010", "DepartmentCode": "MAIN", "Debit": 100.00,  "Memo": "Cash in" },
+    { "AccountCode": "3000", "DepartmentCode": "MAIN", "Credit": 100.00, "Memo": "Revenue" }
   ]
 }
 ```
 
 Response: `{ "BatchId": "...", "DocNo": "JV-2026-05-001" }`.
+
+> Note: `DepartmentCode` is **required** on every EntryRow (API v1 only for all GL endpoints).
 
 ## Confirmation guardrail
 
@@ -51,41 +54,41 @@ Wait for explicit "yes" before POST. For batch journals (e.g. monthly depreciati
 
 ## The four most-used reports
 
-### `getprofitloss` — P&L
+### `getprofitrep` — P&L (income statement)
 
 ```json
-POST /api/v2/getprofitloss
-{ "PeriodStart": "20260101", "PeriodEnd": "20260512" }
+POST /api/v1/getprofitrep
+{ "EndDate": "20260512", "PerCount": 5 }
 ```
 
-Returns revenue, COGS, expenses, operating income, net income, grouped by account.
+Returns hierarchical report lines with `RowType` (1=label, 3=account turnover, 4=formula), `Balance` array (one entry per month, descending from `EndDate`), and `Details` per account.
 
-### `getfinpos` — Financial position (balance sheet)
+### `getbalancerep` — Financial position (balance sheet)
 
 ```json
-POST /api/v2/getfinpos
-{ "AsOfDate": "20260512" }
+POST /api/v1/getbalancerep
+{ "EndDate": "20260512", "PerCount": 1 }
 ```
 
-Returns assets / liabilities / equity at a snapshot date.
+Returns assets / liabilities / equity at a snapshot date. Same structure as `getprofitrep` with `RowType` 2=account balance.
 
 ### `getcustdebtrep` — Customer debts (AR aging)
 
 ```json
-POST /api/v2/getcustdebtrep
-{ "AsOfDate": "20260512" }
+POST /api/v1/getcustdebtrep
+{ "CustName": "", "DebtDate": "20260512" }
 ```
 
-Returns each customer's outstanding receivables aged into buckets (0–30, 31–60, 61–90, 90+).
+Pass `CustName: ""` to get all customers. Returns one row per outstanding document with `PartnerName`, `DocType`, `DueDate`, `TotalAmount`, `PaidAmount`, `UnPaidAmount`. Age buckets must be computed client-side from `DueDate`.
 
-### `getsalesreport` — Sales summary
+### `getsalesrep` — Sales report
 
 ```json
-POST /api/v2/getsalesreport
-{ "PeriodStart": "20260101", "PeriodEnd": "20260512", "GroupBy": "Customer" }
+POST /api/v2/getsalesrep
+{ "StartDate": "20260101", "EndDate": "20260512", "ReportType": 2 }
 ```
 
-`GroupBy` values: `Customer`, `Item`, `Department`, `Project`. Returns aggregated sales per group.
+`ReportType` values: 1=by invoices, 2=by customers, 3=by articles, 4=by fixed assets. Response shape varies by type.
 
 See [reports.md](references/reports.md) for the full list and response shapes.
 
@@ -102,14 +105,15 @@ See [reports.md](references/reports.md) for the full list and response shapes.
 For each fixed asset, debit depreciation expense and credit accumulated depreciation:
 
 ```json
+POST /api/v1/sendglbatch
 {
   "DocNo": "DEP-2026-05",
   "BatchDate": "20260531",
   "EntryRow": [
-    { "AccountCode": "6210", "Debit": 333.33, "Memo": "Depreciation - Office equipment May" },
-    { "AccountCode": "1825", "Credit": 333.33, "Memo": "Accum. depreciation - Office equipment" },
-    { "AccountCode": "6210", "Debit": 250.00, "Memo": "Depreciation - Vehicle May" },
-    { "AccountCode": "1825", "Credit": 250.00, "Memo": "Accum. depreciation - Vehicle" }
+    { "AccountCode": "6210", "DepartmentCode": "MAIN", "Debit": 333.33, "Memo": "Depreciation - Office equipment May" },
+    { "AccountCode": "1825", "DepartmentCode": "MAIN", "Credit": 333.33, "Memo": "Accum. depreciation - Office equipment" },
+    { "AccountCode": "6210", "DepartmentCode": "MAIN", "Debit": 250.00, "Memo": "Depreciation - Vehicle May" },
+    { "AccountCode": "1825", "DepartmentCode": "MAIN", "Credit": 250.00, "Memo": "Accum. depreciation - Vehicle" }
   ]
 }
 ```
@@ -119,12 +123,13 @@ For automated depreciation across many assets, use the fixed-asset endpoints (`s
 ### Accrued expenses (month-end)
 
 ```json
+POST /api/v1/sendglbatch
 {
   "DocNo": "ACR-2026-05",
   "BatchDate": "20260531",
   "EntryRow": [
-    { "AccountCode": "5300", "Debit": 1500.00,  "Memo": "Accrued legal fees - May (invoice expected June)" },
-    { "AccountCode": "2150", "Credit": 1500.00, "Memo": "Accrued liabilities" }
+    { "AccountCode": "5300", "DepartmentCode": "MAIN", "Debit": 1500.00,  "Memo": "Accrued legal fees - May (invoice expected June)" },
+    { "AccountCode": "2150", "DepartmentCode": "MAIN", "Credit": 1500.00, "Memo": "Accrued liabilities" }
   ]
 }
 ```

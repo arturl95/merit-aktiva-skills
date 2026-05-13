@@ -49,7 +49,7 @@ Confirm with user before POST. Response gives `Id`.
 ```json
 {
   "Vendor": { "Id": "<vendor-guid>" },
-  "DocNo": "DE-2026-INV-7788",
+  "BillNo": "DE-2026-INV-7788",
   "DocDate": "20260508",
   "TransactionDate": "20260508",
   "DueDate": "20260522",
@@ -72,7 +72,7 @@ Confirm with user before POST. Response gives `Id`.
 
 Notes:
 
-- `DocNo` is **Hetzner's** invoice number (printed on their PDF), not your own counter.
+- `BillNo` is **Hetzner's** invoice number (printed on their PDF), not your own counter.
 - `Price` is the net amount (what Hetzner billed) — they did NOT add VAT because intra-EU B2B services use reverse charge (their invoice should note "Reverse charge — VAT due by recipient").
 - `TotalAmount` is the **net** (cash payable to vendor) = €500.00.
 - `TaxAmount` is the self-charged Estonian VAT at 24% on €500 = €120.00. This appears in KMD as output VAT, then immediately as input VAT, so the net VAT cash position is zero.
@@ -97,8 +97,8 @@ Response:
 ```json
 {
   "VendorId": "<guid>",
-  "PurchInvoiceId": "<guid>",
-  "DocNo": "DE-2026-INV-7788",
+  "BillId": "<guid>",
+  "BillNo": "DE-2026-INV-7788",
   "NewVendor": false
 }
 ```
@@ -119,10 +119,10 @@ Net result: AP €500 to Hetzner, expense €500, VAT cash zero, VAT declaration
 When the bank transfer goes out:
 
 ```
-POST /api/v2/sendpurchasepayment
+POST /api/v2/sendPaymentV
 {
-  "Vendor": { "Id": "<vendor-guid>" },
-  "InvoiceNo": "DE-2026-INV-7788",
+  "VendorName": "Hetzner Online GmbH",
+  "BillNo": "DE-2026-INV-7788",
   "PaymentDate": "20260520",
   "Amount": 500.00,
   "IBAN": "EE382200221020145685",

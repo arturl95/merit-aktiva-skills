@@ -65,6 +65,7 @@ Body: `{ "UsageFilter": 0 }` for the full chart of accounts. Filter values:
     "NameRU":        "Касса",
     "TaxName":       null,
     "TaxNameEN":     null,
+    "TaxNameRU":     null,
     "LinkedVendorName": null,
     "IsParent":      false,
     "ReportdescName":   "Käibevara",
@@ -120,7 +121,36 @@ def init_session():
 
 Persist the result for the duration of the session. Most production integrations also persist across sessions with a 24-hour TTL.
 
+## `POST /api/v2/sendtax`
+
+Create a new tax rate. Only needed when setting up OSS (One-Stop-Shop) or other special tax codes not already in the tenant. In practice this is rare — most companies use the pre-configured Merit VAT codes.
+
+### Fields
+
+| Field | Type | Req | Notes |
+|---|---|---|---|
+| `Code` | string(16) | yes | Short code shown in dropdowns |
+| `CodeEN` | string(16) | no | English code |
+| `CodeSE` | string(16) | no | Swedish code |
+| `CodeRU` | string(16) | no | Russian code |
+| `Name` | string(40) | yes | Display name |
+| `NameEN` | string(150) | no | English name |
+| `NameSE` | string(150) | no | Swedish name |
+| `NameRU` | string(150) | no | Russian name |
+| `TaxPct` | decimal(18,2) | yes | Rate, e.g. `24.00` |
+| `TaxType` | int | yes | 12 = OSS sale to the EU |
+| `CountryCode` | string(2) | yes | ISO country code |
+
+### Response
+
+```json
+{ "CreatedTaxId": "<guid>" }
+```
+
+Invalidate the `gettaxes` session cache after calling this endpoint.
+
 ## Source
 
 - https://api.merit.ee/connecting-robots/reference-manual/tax-list/
+- https://api.merit.ee/connecting-robots/reference-manual/send-tax/
 - https://api.merit.ee/connecting-robots/reference-manual/accounts-list/

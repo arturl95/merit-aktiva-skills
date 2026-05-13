@@ -19,7 +19,7 @@ The endpoint name is plural — it accepts a batch in `{ "Items": [ ... ] }`.
 | `DefLocationCode` | string(20) | required if multi-stock company | Default warehouse |
 | `DescriptionEN`, `DescriptionRU`, `DescriptionFI` | string(100) | no | Translations |
 | `TaxId` | GUID | recommended | Default VAT code from `gettaxes` cache |
-| `ItemGrCode` / `ItemGrId` | string / GUID | no | Item group |
+| `ItemGrCode` | string | no | Item group code; must exist in the database |
 | `GTUCode` | enum | no | PL-only sales tag (1–13) |
 | `SalesAccCode` | string(10) | no | GL account override for sales (default from chart of accounts) |
 | `PurchaseAccCode` | string(10) | no | GL account override for purchases |
@@ -35,6 +35,31 @@ The endpoint name is plural — it accepts a batch in `{ "Items": [ ... ] }`.
 ]
 ```
 
+## `POST /api/v1/updateitem`
+
+Update an existing item. `Id` is required; all other fields are optional.
+
+**Important:** field names differ from `senditems` — the update endpoint uses the same names as the `getitems` response.
+
+| Field | Type | Notes |
+|---|---|---|
+| `Id` | GUID | Required |
+| `Code` | string(20) | |
+| `Description` | string(100) | |
+| `SalesPrice` | decimal(18,2) | |
+| `ItemGrCode` | string | Must exist in the database |
+| `DiscountPct` | decimal(18,2) | |
+| `EANCode` | string(13) | |
+| `NameEN` | string(100) | English name (note: `DescriptionEN` in senditems) |
+| `LastPurchasePrice` | decimal(18,2) | |
+| `SalesAccountCode` | string(10) | Note: `SalesAccCode` in senditems |
+| `InventoryAccountCode` | string(10) | Note: `InventoryAccCode` in senditems |
+| `ItemCostAccountCode` | string(10) | Note: `CostAccCode` in senditems |
+| `TaxId` | GUID | |
+| `GTUCode` | int | Poland only, values 1–13 |
+
+Response: not documented; treat as success/error HTTP status.
+
 ## `POST /api/v1/getitems`
 
 Filter fields:
@@ -49,6 +74,14 @@ Filter fields:
 | `Type` | int | 1/2/3 |
 
 Response object fields: `ItemId`, `Code`, `Name`, `NameEN`, `NameFI`, `NameRU`, `UnitofMeasureName`, `Type0` (numeric), `Type` (text), `SalesPrice`, `InventoryQty`, `ReservedQty`, `VatTaxName`, `Usage0`, `Usage`, `SalesAccountCode`, `PurchaseAccountCode`, `InventoryAccountCode`, `ItemCostAccountCode`, `DiscountPct`, `LastPurchasePrice`, `ItemUnitCost`, `InventoryCost`, `ItemGroupName`, `DefLoc_Name`, `EANCode`, `GTUCodes`.
+
+## `POST /api/v2/getitemgroups`
+
+Returns all item groups. Body: `{}`. Response: array of `{ Id, Code, Name }`.
+
+## `POST /api/v2/senditemgroups`
+
+Create item groups. Body: `{ "ItemGroups": [ { "Code": "...", "Name": "..." } ] }`. Response: array of `{ Code, Id }`.
 
 ## When to use each `Type`
 

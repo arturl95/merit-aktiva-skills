@@ -137,7 +137,7 @@ Response:
 ## Step 8 — (Optional) Retrieve PDF
 
 ```
-POST /api/v2/getinvoicepdf   body: {"Id": "<InvoiceId>"}
+POST /api/v2/getsalesinvpdf   body: {"Id": "<InvoiceId>"}
 ```
 
 Decode `FileContent` (base64) and save locally if the user wants the PDF.

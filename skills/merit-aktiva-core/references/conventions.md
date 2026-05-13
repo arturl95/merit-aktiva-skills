@@ -43,7 +43,7 @@ The signing timestamp is the only one that must be UTC. Body dates are local bus
 
 ## Rate limits
 
-- 100 requests per minute per `ApiId`.
+- 100 requests per minute per `apiId`.
 - On 429 the response carries:
   - `X-RateLimit-Limit`
   - `X-RateLimit-Remaining`

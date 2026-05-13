@@ -1,6 +1,6 @@
 # Invoice PDFs and email delivery
 
-## `POST /api/v2/getinvoicepdf` — fetch an invoice PDF
+## `POST /api/v2/getsalesinvpdf` — fetch an invoice PDF
 
 Request:
 
@@ -8,11 +8,9 @@ Request:
 { "Id": "<invoice-guid>" }
 ```
 
-Or, if you only know the InvoiceNo:
+Optional field: `DelivNote` (bool, lowercase `"true"` or `"false"`) — if `true`, returns the invoice without prices (delivery note layout).
 
-```json
-{ "InvoiceNo": "2026-0042" }
-```
+**Note:** The official API documentation only documents `Id` as a request field for this endpoint. The `InvoiceNo` alternative is not confirmed in the live docs.
 
 Response:
 
@@ -71,16 +69,16 @@ Notes:
 
 - The PDF must be valid; Merit doesn't render it but stores it.
 - Size: keep under ~5 MB. No hard limit documented but very large payloads can exceed Merit's JSON compilation budget.
-- This attached PDF is what `sendinvoicebyemail` will dispatch and what `getinvoicepdf` will return. It replaces the Merit-rendered PDF.
+- This attached PDF is what `sendinvoicebyemail` will dispatch and what `getsalesinvpdf` will return. It replaces the Merit-rendered PDF.
 
 ## Pulling all invoices' PDFs in bulk
 
 Common for monthly archival:
 
 ```
-invoices = POST /api/v2/getinvoices { PeriodStart, PeriodEnd }
+invoices = POST /api/v2/getinvoices { PeriodStart, PeriodEnd, UnPaid: false }
 for inv in invoices:
-    pdf = POST /api/v2/getinvoicepdf { "Id": inv.InvoiceId }
+    pdf = POST /api/v2/getsalesinvpdf { "Id": inv.InvoiceId }
     save_to_disk(pdf.FileName, base64.decode(pdf.FileContent))
 ```
 
@@ -88,5 +86,5 @@ Honor the 100/min rate limit — for 500+ invoices, throttle to ~1.5/sec or batc
 
 ## Source
 
-- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/create-sales-invoice/
-- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/get-invoice-details/
+- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/create-sales-invoice/get-sales-invoice-pdf/
+- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/send-invoice-by-email/

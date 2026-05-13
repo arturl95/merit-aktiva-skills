@@ -29,7 +29,8 @@
 | `FileName` | string(100) | no | v2 — file name for the PDF |
 | `Payer` | PayerObject | no | v2 — when payer differs from invoice customer |
 | `ReserveItems` | bool | no | v2 — reserve stock immediately |
-| `Dimensions` | array of `{ DimCode, DimValueId }` | no | v2 |
+| `DeliveryType` | bool | no | v2 |
+| `Dimensions` | array of DimensionsObject | no | v2 |
 | `ProcCodes` | array of strings | no | PL only: SW, EE, TP, TT_WNT, TT_D, MR_T, MR_UZ, I_42, I_63, B_SPV, B_SPV_DOSTAWA, B_MRV_PROWIZJA, MPP, WSTO_EE, IED |
 | `PolDocType` | enum | no | PL only: 1=RO, 2=WEW, 3=FP, 4=OJPK |
 | `KsefNumber` | string(36) | no | PL only |
@@ -50,6 +51,7 @@
 | `ProjectCode` | string(20) | no | |
 | `ItemCostAmount` | decimal(18,2) | conditional | **Required for credit-invoice rows of stock items.** |
 | `VatDate` | YYYYMMDD | no | Tax point if different from invoice date |
+| `CostCenterCode` | string(20) | no | v1 only; if used, must exist in company database |
 | `Dimensions` | array | no | v2 |
 
 ## `ItemObject` (within row)
@@ -79,6 +81,14 @@ If `Id` is present, all other fields are ignored. Otherwise, the same shape as `
 | `Amount` | decimal(18,2) | yes |
 
 **Important**: group rows by `TaxId`, sum the per-row VAT (each row's `Quantity * Price * (1 - DiscountPct/100) * (TaxPct/100)`, rounded to 2dp), then build one `TaxAmount` entry per distinct `TaxId`.
+
+## `DimensionsObject` (v2 — used in header and row `Dimensions` arrays)
+
+| Field | Type | Notes |
+|---|---|---|
+| `DimId` | int | Dimension identifier |
+| `DimValueId` | GUID | Dimension value identifier |
+| `DimCode` | string | Dimension code |
 
 ## `PaymentObject` (optional, marks invoice paid)
 
@@ -191,4 +201,6 @@ VAT math for the rich example:
 ## Source
 
 - https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/create-sales-invoice/
-- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/get-invoice-details/
+- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/get-sales-invoice-details/
+- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/get-list-of-invoices/
+- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/delete-invoice/

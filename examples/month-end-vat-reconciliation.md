@@ -43,7 +43,7 @@ for inv in invoices:
 ## Step 2 — Pull period purchases
 
 ```
-POST /api/v2/getpurchaseinvoices
+POST /api/v1/getpurchorders
 { "PeriodStart": "20260401", "PeriodEnd": "20260430" }
 ```
 
@@ -75,18 +75,18 @@ Net VAT payable = (line 4 + 4.1 + 4.2) − line 5.
 ## Step 4 — Pull GL movements
 
 ```
-POST /api/v2/getglbatchesfull
+POST /api/v1/getglbatchesfull
 { "PeriodStart": "20260401", "PeriodEnd": "20260430" }
 ```
 
-Or, simpler: pull the financial position as of period start and period end, take the delta:
+Or, simpler: pull the balance sheet as of period start and period end, take the delta:
 
 ```
-POST /api/v2/getfinpos { "AsOfDate": "20260331" }
-POST /api/v2/getfinpos { "AsOfDate": "20260430" }
+POST /api/v1/getbalancerep { "EndDate": "20260331", "PerCount": 1 }
+POST /api/v1/getbalancerep { "EndDate": "20260430", "PerCount": 1 }
 ```
 
-Find accounts 1230 (Sisendkäibemaks) and 2120 (Käibemaksu kohustus). The period movement is the difference between the two as-of values.
+Find accounts 1230 (Sisendkäibemaks) and 2120 (Käibemaksu kohustus). The period movement is the difference between the two end-of-period values.
 
 ## Step 5 — Reconcile
 

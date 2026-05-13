@@ -10,8 +10,7 @@ Merit's HTTP status taxonomy is loose: a 200 can contain an ASP.NET stack trace 
 |---|---|---|---|
 | 200 (OK) | Happy path | `{ ... }` | n/a |
 | 200 (logical error) | Validation slipped through | ASP.NET stack trace | Fix payload; not retryable unchanged |
-| 400 | Malformed payload, bad ApiId format, whitespace in credentials | `{ "Message": "..." }` | No, fix locally |
-| 401 (no body) | Wrong ApiId or signature mismatch | empty | Re-check signing |
+| 400 | Malformed payload, wrong ApiId (incl. whitespace), signature mismatch | `{ "Message": "..." }` | No, fix locally |
 | 401 + `api-wronglicense` | Company on Free/Standard license | `api-wronglicense` | No — user must upgrade |
 | 404 | Wrong URL, missing query params, wrong v1/v2 version | empty | Fix URL |
 | 429 | Rate limit | (headers include `Retry-After`) | Yes, after wait |
@@ -19,12 +18,15 @@ Merit's HTTP status taxonomy is loose: a 200 can contain an ASP.NET stack trace 
 
 ## Recovery patterns by status
 
-### On 401 without body
-1. Confirm `MERIT_API_ID` and `MERIT_API_KEY` are set and contain no whitespace.
-2. Confirm timestamp is UTC and within ~5 minutes of server time.
-3. Confirm the signature was **URL-encoded** before being appended to the query string.
-4. Confirm you signed the **exact same bytes** you POSTed.
-5. Confirm the base64 alphabet is **standard** (`+ / =`), not URL-safe (`- _`).
+### On 400
+The official docs identify two 400 scenarios: (a) malformed payload and (b) wrong ApiId (including accidental whitespace from copy-paste). Check both:
+1. Confirm `MERIT_API_ID` is set correctly and contains no leading/trailing whitespace.
+2. Confirm `MERIT_API_KEY` is set correctly.
+3. Confirm timestamp is UTC and within ~5 minutes of server time.
+4. Confirm the signature was **URL-encoded** before being appended to the query string.
+5. Confirm you signed the **exact same bytes** you POSTed.
+6. Confirm the base64 alphabet is **standard** (`+ / =`), not URL-safe (`- _`).
+7. Validate the payload locally against the relevant skill's schema.
 
 ### On 401 + `api-wronglicense`
 Surface to the user immediately:
@@ -32,8 +34,7 @@ Surface to the user immediately:
 
 Not retryable in code.
 
-### On 400
-Validate the payload locally against the relevant skill's schema reference. Common causes:
+Common payload causes of 400:
 
 - Missing required field (e.g. `NotTDCustomer` on a new customer, `CountryCode` on a new customer, `TaxId` on an invoice row).
 - Unknown `Code` for a master-data reference (item code, customer reg no, account code).
@@ -42,7 +43,7 @@ Validate the payload locally against the relevant skill's schema reference. Comm
 
 ### On 404
 - Confirm v1 vs v2 path. `gettaxes` is v1, `sendinvoice` is v2.
-- Confirm all three of `ApiId`, `timestamp`, `signature` are in the URL.
+- Confirm all three of `apiId`, `timestamp`, `signature` are in the URL.
 - Confirm the endpoint name spelling.
 
 ### On 429
@@ -74,8 +75,8 @@ Drawn from the official FAQ and per-endpoint pages, with symptom and fix.
 
 ### Auth & transport
 
-6. **URL-encode the signature.** Symptom: 401 even though local HMAC matches. Fix: URL-encode after base64.
-7. **Timestamp must be UTC, current.** Symptom: 401 with correct signing logic. Fix: NTP-sync, format as `yyyyMMddHHmmss` from `now_utc()`.
+6. **URL-encode the signature.** Symptom: 400 even though local HMAC matches. Fix: URL-encode after base64.
+7. **Timestamp must be UTC, current.** Symptom: 400 with correct signing logic. Fix: NTP-sync, format as `yyyyMMddHHmmss` from `now_utc()`.
 8. **License tier matters.** Symptom: 401 + `api-wronglicense`. Fix: not a client bug — user must upgrade plan.
 
 ### Immutability & uniqueness
@@ -97,5 +98,5 @@ Drawn from the official FAQ and per-endpoint pages, with symptom and fix.
 
 - Timeout for any single request: 30 seconds.
 - Retry budget for transient errors (429, 5xx, network): 3 attempts with exponential backoff (1s, 2s, 4s).
-- Never retry on 400 or 401 (except a single retry after fixing clock skew on 401).
+- Never retry on 400 or 401 (except a single retry on 400 after fixing clock skew or credentials).
 - Log the response body shape (status + first 200 chars) for every non-2xx response.

@@ -53,7 +53,7 @@ For credit invoices of **stock items (`Type: 1`)**, you **must** supply `ItemCos
 
 `ItemCostAmount` is the unit cost the item was carried at when the original sale debited cost of goods sold. Look it up:
 
-- From the original invoice's row data via `getinvoice`.
+- From the original invoice's row data via `POST /api/v2/getinvoice` (pass `{ "Id": "<invoice-guid>" }`).
 - Or via `getitems` with `LocationCode` filter (returns `ItemUnitCost`).
 
 `LocationCode` is required to indicate where the credited stock returns to.
@@ -97,4 +97,5 @@ For corrections affecting a closed VAT period, file a corrected KMD for that per
 ## Source
 
 - https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/create-sales-invoice/
+- https://api.merit.ee/connecting-robots/reference-manual/sales-invoices/get-sales-invoice-details/
 - https://www.emta.ee/en/business-client/taxes-and-payment/value-added-tax/calculation-and-refund-vat

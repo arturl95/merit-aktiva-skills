@@ -7,43 +7,50 @@
 | Field | Type | Req | Notes |
 |---|---|---|---|
 | `Vendor` | VendorObject | yes | By `Id` (preferred) or fully-specified new vendor |
-| `DocNo` | string(35) | yes | The **vendor's** invoice number |
-| `DocDate` | YYYYMMDD | yes | Issue date on the vendor's invoice |
+| `BillNo` | string(35) | no | The **vendor's** invoice number |
+| `DocDate` | YYYYMMDD | no | Issue date on the vendor's invoice |
 | `TransactionDate` | YYYYMMDD | no | Date the supply was performed; defaults to `DocDate` |
 | `DueDate` | YYYYMMDD | no | Defaults to `DocDate + vendor.PaymentDeadLine` |
 | `CurrencyCode` | string(4) | no | ISO; defaults to vendor's currency or company default |
 | `CurrencyRate` | decimal(18,7) | no | v2: ECB rate of `DocDate` if omitted |
 | `RefNo` | string(36) | no | Vendor's reference number (e.g. their payment reference) |
-| `ContractNo` | string(35) | no | |
-| `InvoiceRow` | array of InvoiceRowObject | yes | At least one |
+| `BankAccount` | string(50) | no | Vendor bank account |
+| `InvoiceRow` | array of InvoiceRowObject | no | Line items |
 | `TaxAmount` | array of TaxObject | yes | Grouped by `TaxId`, summed |
 | `TotalAmount` | decimal(18,2) | no | Net of VAT |
 | `RoundingAmount` | decimal(18,2) | no | |
 | `Hcomment`, `Fcomment` | strings | no | |
 | `ExpenseClaim` | bool | no | `true` → expense claim semantics |
 | `Attachment` | object | no | `{ FileName, FileContent: <base64> }` — e.g. scanned receipt |
-| `DepartmentCode`, `ProjectCode` | string(20) | no | |
-| `Dimensions` | array | no | v2 |
+| `DepartmentCode` | string(20) | no | Must exist in database |
+| `Dimensions` | array of DimensionsObjects | no | v2; must exist in database |
+| `Payment` | PaymentObject | no | Inline payment at time of entry |
+| `Receiver` | ReceiverObject | no | v2 |
 
 ### `InvoiceRowObject` (purchase side)
 
+Note: the row-level `Description` field is **not** a top-level InvoiceRowObject field in the Merit API. Description lives inside the `Item` sub-object. For expense lines without a stored item, omit `Item` and use `GLAccountCode` directly; the line description is taken from `Item.Description` if an item is supplied.
+
 | Field | Type | Req | Notes |
 |---|---|---|---|
-| `Item` | ItemObject | conditional | Required for stock-item purchases |
-| `Description` | string(150) | yes when no `Item` | The row label that prints |
-| `Quantity` | decimal(18,3) | yes | |
-| `Price` | decimal(18,7) | yes | |
-| `DiscountPct` | decimal(18,2) | no | |
+| `Item` | ItemObject | no | Required for stock-item purchases; contains `Description` |
+| `Quantity` | decimal(18,3) | no | |
+| `Price` | decimal(18,7) | no | |
 | `TaxId` | GUID | yes | From `gettaxes` cache |
-| `GLAccountCode` | string(10) | recommended | Expense account; without it, default routing applies |
-| `LocationCode` | string(20) | conditional | Required for stock items |
-| `DepartmentCode`, `ProjectCode` | strings | no | |
-| `Dimensions` | array | no | v2 |
+| `GLAccountCode` | string(10) | no | Expense account; without it, default routing applies |
+| `LocationCode` | string(20) | no | Required for stock items |
+| `DepartmentCode` | string(20) | no | Must exist in database |
+| `Dimensions` | array of DimensionsObjects | no | v2 |
+| `VatDate` | string(20) | no | v2 |
+| `SalesAccCode` | string(10) | no | v2 |
+| `PurchaseAccCode` | string(10) | no | v2; ignored if `GLAccountCode` supplied |
+| `InventoryAccCode` | string(10) | no | v2 |
+| `CostAccCode` | string(10) | no | v2 |
 
 ### Response
 
 ```json
-{ "VendorId": "...", "PurchInvoiceId": "...", "DocNo": "...", "NewVendor": false }
+{ "VendorId": "...", "BillId": "...", "BillNo": "...", "RefNo": "...", "BatcInfo": {} }
 ```
 
 ## Reverse-charge purchase invoice — worked example
@@ -54,13 +61,13 @@ Buying €100 of consulting from a German supplier (intra-EU service, Art. 44 re
 POST /api/v2/sendpurchinvoice
 {
   "Vendor": { "Id": "<DE-vendor-guid>" },
-  "DocNo": "DE-2026-INV-7788",
+  "BillNo": "DE-2026-INV-7788",
   "DocDate": "20260508",
   "DueDate": "20260522",
   "CurrencyCode": "EUR",
   "InvoiceRow": [
     {
-      "Description": "Consulting (Berlin team) — May",
+      "Item": { "Code": "CONSULT", "Description": "Consulting (Berlin team) — May", "Type": 2 },
       "Quantity": 1,
       "Price": 100.00,
       "GLAccountCode": "55300",
@@ -85,33 +92,37 @@ Net cash payable to vendor: €100. Net VAT cash position: 0 (input and output o
 
 For intra-EU goods, use the `EL kaup pöördkm` tax code instead — same mechanics, hits KMD lines 6 and 6.1 (intra-EU acquisition of goods).
 
-## Approval queue — `sendpurchinvoiceforapproval`
+## Approval queue — `sendpurchorder`
 
-Same payload shape. The invoice lands in `Purchases → Approval queue` rather than the active ledger. Approvers see it in the Merit UI and approve/reject; on approval it posts normally.
+Same payload shape. The invoice lands in the approval queue rather than posting directly to the active ledger. Approvers see it in the Merit UI and approve/reject; on approval it posts normally.
 
 Use cases:
 - 4-eyes principle (finance must approve invoices over €X).
-- E-invoice inbound flow — incoming e-invoices automatically land here (per support docs); your AP team triage and approves.
+- Bookkeepers approving purchase orders and expense claims before they hit the ledger.
 
 The API does not currently expose programmatic approval; approval happens in the UI or via Merit's mobile app.
 
-## Listing purchase invoices
+> **Note:** The endpoint is `sendpurchorder`, not `sendpurchinvoiceforapproval`. Using the wrong name will result in a 404.
+
+## Listing purchase invoices — `getpurchorders`
 
 ```json
-POST /api/v2/getpurchaseinvoices
-{ "PeriodStart": "20260101", "PeriodEnd": "20260512", "UpdatedDate": null }
+POST /api/v2/getpurchorders
+{ "PeriodStart": "20260101", "PeriodEnd": "20260512", "DateType": 1, "UnPaid": false }
 ```
 
-For incremental sync, use the `UpdatedDate` high-water-mark cursor pattern.
+`DateType`: 0 = DocumentDate, 1 = ChangedDate. For incremental sync, use `DateType: 1` with a ChangedDate high-water-mark.
 
-## Get single purchase invoice with rows and attachments
+Response fields include: `PIHId`, `BillNo`, `DocumentDate`, `VendorId`, `VendorName`, `DueDate`, `CurrencyCode`, `TotalAmount`, `PaidAmount`, `Paid`, `ChangedDate`, and more.
+
+## Get single purchase invoice with rows and attachments — `getpurchorder`
 
 ```json
-POST /api/v2/getpurchaseinvoice
-{ "Id": "<purch-invoice-guid>", "AddAttachment": true }
+POST /api/v2/getpurchorder
+{ "Id": "<purch-invoice-guid>", "SkipAttachment": false }
 ```
 
-Response includes header, rows (with TaxId/account/quantity/price), payments allocated against it, and (if `AddAttachment: true`) the base64-encoded scanned receipt.
+Response includes header (with `BillNo`, `VendorName`, `TotalSum`, `PaidAmount`, etc.), line items (with `ArticleCode`, `Quantity`, `Price`, `AccountCode`, `Description`), payments allocated, and attachment (base64) if `SkipAttachment: false`.
 
 ## Delete
 

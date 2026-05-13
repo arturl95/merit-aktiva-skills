@@ -38,7 +38,7 @@ Use v2 by default. The following endpoints live only on v1: `gettaxes`, `getacco
 timestamp  = UTC now formatted yyyyMMddHHmmss
 dataToSign = utf8(apiId + timestamp + httpBody)
 signature  = base64(hmac_sha256(apiKey, dataToSign))
-url        = base + endpoint + "?ApiId=" + apiId + "&timestamp=" + ts + "&signature=" + urlencode(signature)
+url        = base + endpoint + "?apiId=" + apiId + "&timestamp=" + ts + "&signature=" + urlencode(signature)
 ```
 
 Critical:
@@ -47,7 +47,7 @@ Critical:
 - Concatenation: `apiId + timestamp + body`. No separators. Empty body = empty string.
 - Timestamp is **UTC**, not Tallinn local.
 - Standard base64 alphabet (`+ / =`), then **URL-encode** before appending — `+` becomes a space otherwise.
-- All three params (`ApiId`, `timestamp`, `signature`) live in the **query string**, never in headers.
+- All three params (`apiId`, `timestamp`, `signature`) live in the **query string**, never in headers.
 - Sign the exact bytes you POST. Re-serializing later (whitespace, key order, unicode escapes) breaks the signature.
 
 See [authentication.md](references/authentication.md) for a worked example, cross-library notes, and a curl one-liner.
@@ -58,22 +58,21 @@ See [authentication.md](references/authentication.md) for a worked example, cros
 - `Content-Type: application/json; charset=utf-8`.
 - Body: JSON. For endpoints that take no payload, send `{}` (not empty string).
 
-## The 6 errors you will hit
+## The 5 errors you will hit
 
 | Status | Cause | What to do |
 |---|---|---|
 | 200 + body containing `at System.` or `Microsoft.AspNet` | Logical/validation error slipped past 400 check | Treat as 422. Parse the first line of the trace — it usually names the missing field. |
-| 400 | Malformed payload; invalid ApiId; whitespace in credentials | Validate payload locally against the schema in the relevant skill; check for accidental whitespace in env vars. |
-| 401 (no body) | Wrong ApiId | Re-check env vars; re-check signing (timestamp UTC, base64 + URL-encode). |
+| 400 | Malformed payload; wrong ApiId (incl. accidental whitespace); invalid signing | Validate payload locally against the schema in the relevant skill; check for accidental whitespace in env vars; recheck `apiId`/`timestamp`/`signature` casing in query string. |
 | 401 + body `api-wronglicense` | Company is on Free/Standard | Not retryable. Tell the user the company must upgrade to Pro/Premium. |
-| 404 | Wrong path or missing required query params | Confirm v1 vs v2 path; confirm all three of ApiId/timestamp/signature are in the URL. |
+| 404 | Wrong path or missing required query params | Confirm v1 vs v2 path; confirm all three of apiId/timestamp/signature are in the URL. |
 | 429 | Rate limited | Sleep `Retry-After` seconds, then exponential backoff. See `conventions.md`. |
 
 See [error-playbook.md](references/error-playbook.md) for the full taxonomy and the 14 known gotchas with recovery patterns.
 
 ## Rate limits
 
-100 requests per minute per `ApiId`. On 429, response headers include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (unix), `Retry-After` (seconds). Honor `Retry-After`.
+100 requests per minute per `apiId`. On 429, response headers include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (unix), `Retry-After` (seconds). Honor `Retry-After`.
 
 ## When to read each reference
 

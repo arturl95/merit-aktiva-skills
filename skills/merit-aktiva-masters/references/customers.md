@@ -40,7 +40,7 @@ Create or upsert a customer. The `Id` field, if present, switches to update mode
 | `GLNCode` | string(10) | Global Location Number for e-invoicing |
 | `PartyCode` | string(20) | Network party code |
 | `PayerReceiverName` | string(150) | When payer differs from receiver |
-| `Dimensions` | array of `{ DimCode, DimValueId }` | Custom dimensions |
+| `Dimensions` | array of `{ DimId, DimCode, DimValueId }` | Custom dimensions; `DimId` is Int |
 | `CustGrCode` / `CustGrId` | string(20) / GUID | Customer group |
 | `ShowBalance` | bool | Show running balance on invoices |
 | `BankOnSalesInvoice` | GUID | Specific bank account to show on invoices |
@@ -81,7 +81,70 @@ Filter the customer list. **Never call with an empty filter** — large unfilter
 
 ### Response object fields
 
-`CustomerId`, `Name`, `RegNo`, `VatRegNo`, `Contact`, `PhoneNo`, `PhoneNo2`, `FaxNo`, full address fields, `Email`, `HomePage`, `CurrencyCode`, `CustomerGroupId`, `CustomerGroupName`, `PaymentDeadLine`, `OverdueCharge`, `NotTDCustomer`, `BankName`, `BankAccount`, `SalesInvLang`, `RefNoBase`, `GLNCode`, `PartyCode`, `TelemaEdi`, `InvSendPref`, `ChangedDate`, `Comments[]`, `Dimensions[]`.
+`CustomerId`, `Name`, `RegNo`, `VatRegNo`, `Contact`, `PhoneNo`, `PhoneNo2`, `FaxNo`, `Address`, `City`, `County`, `PostalCode`, `CountryName`, `CountryCode`, `Email`, `HomePage`, `CurrencyCode`, `CustomerGroupId`, `CustomerGroupName`, `PaymentDeadLine`, `OverdueCharge`, `NotTDCustomer`, `BankName`, `BankAccount`, `SalesInvLang`, `RefNoBase`, `GLNCode`, `PartyCode`, `TelemaEdi`, `InvSendPref`, `ChangedDate`, `Comments[]`, `Dimensions[]`.
+
+`Dimensions` array objects: `{ Id, DimId, DimValueId, DimCode }`.
+
+## `POST /api/v1/updatecustomer`
+
+Update an existing customer. `Id` is required; all other fields are optional and only the supplied fields are changed.
+
+### Fields
+
+| Field | Type | Req | Notes |
+|---|---|---|---|
+| `Id` | GUID | yes | Identifies the customer to update |
+| `Name` | string(150) | no | |
+| `CountryCode` | string(2) | no | |
+| `Address` | string(100) | no | |
+| `City` | string(30) | no | |
+| `County` | string(100) | no | |
+| `PostalCode` | string(15) | no | |
+| `PhoneNo` | string(50) | no | |
+| `PhoneNo2` | string(50) | no | |
+| `Email` | string(80) | no | |
+| `RegNo` | string(30) | no | |
+| `VatRegNo` | string(30) | no | |
+| `SalesInvLang` | string(2) | no | |
+| `RefNoBase` | string(36) | no | |
+| `EInvPaymId` | string(20) | no | |
+| `EInvOperator` | int | no | |
+| `BankAccount` | string(50) | no | |
+| `CustGrCode` | string(20) | no | |
+| `CustGrId` | GUID | no | |
+| `Contact` | string(35) | no | |
+| `ApixEInv` | string(20) | no | |
+| `GroupInv` | bool | no | |
+| `PaymentDeadLine` | int | no | |
+| `OverDueCharge` | decimal(5,2) | no | |
+| `NotTDCustomer` | bool | no | |
+| `PayerReceiverName` | string(150) | no | |
+| `CurrencyCode` | string(4) | no | |
+| `HomePage` | string(80) | no | |
+| `GLNCode` | string(10) | no | |
+| `PartyCode` | string(20) | no | |
+| `ShowBalance` | bool | no | |
+| `BankOnSalesInvoice` | GUID | no | |
+| `Dimensions` | array | no | `{ DimId, DimValueId, DimCode }` |
+| `Comments` | array | no | `{ Comment, CommDate }` |
+
+Response: not documented; treat as success/error HTTP status.
+
+## `POST /api/v2/sendcustomergroup`
+
+Create or update a customer group.
+
+| Field | Type | Req | Notes |
+|---|---|---|---|
+| `Id` | GUID | no | If present, updates existing |
+| `Name` | string(64) | yes | |
+| `Code` | string(20) | yes | |
+
+Response: `{ Id, Name, Code }`.
+
+## `POST /api/v2/getcustomergroups`
+
+Returns all customer groups. Body: `{}`. Response: array of `{ Id, Name, Code }` (all string/GUID fields).
 
 ## Incremental sync pattern
 
