@@ -20,14 +20,24 @@ This plugin does **not** ship code. It ships *instructions* — six skills your 
 
 ## Quick start
 
-```bash
-# Install the plugin
-/plugin install github.com/arturl95/merit-aktiva-skills
+In any Claude Code session:
 
-# Set credentials (from Merit Aktiva → Settings → API Settings)
+```bash
+# 1. Add this repo as a plugin marketplace
+/plugin marketplace add arturl95/merit-aktiva-skills
+
+# 2. Install the plugin
+/plugin install merit-aktiva-skills@merit-aktiva-skills
+```
+
+Then set credentials (from Merit Aktiva → Settings → API Settings) in your shell:
+
+```bash
 export MERIT_API_ID="your-api-id-guid"
 export MERIT_API_KEY="your-api-key-secret"
 ```
+
+See [Installation](#installation) below for alternative install methods (local clone, marketplace.json, etc.).
 
 Then ask Claude:
 
@@ -82,6 +92,56 @@ See [API seadistus on support.merit.ee](https://support.merit.ee/et/articles/368
 | **`estonian-bookkeeping`** | 2026 Estonian tax rules — VAT, CIT, payroll, KMD codes, fringe benefits. Standalone (no Merit dependency). |
 
 Plus a bundled subagent **`merit-bookkeeper`** for batch jobs (a stack of receipts, monthly retainers, bank reconciliation).
+
+## Installation
+
+Pick whichever method fits your setup.
+
+### A — Add as a marketplace (recommended)
+
+In any Claude Code session:
+
+```bash
+/plugin marketplace add arturl95/merit-aktiva-skills
+/plugin install merit-aktiva-skills@merit-aktiva-skills
+```
+
+The first command registers this repo as a [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces). The second installs the `merit-aktiva-skills` plugin from it. Updates land via `/plugin update`.
+
+### B — Local clone (for development or air-gapped use)
+
+```bash
+git clone https://github.com/arturl95/merit-aktiva-skills.git
+claude --plugin-dir ./merit-aktiva-skills
+```
+
+`--plugin-dir` loads the plugin for the current session without installing it system-wide. You can stack multiple plugin directories.
+
+### C — Persist as a known marketplace in `~/.claude/settings.json`
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "merit-aktiva-skills": {
+      "source": { "source": "github", "repo": "arturl95/merit-aktiva-skills" }
+    }
+  }
+}
+```
+
+Then `/plugin install merit-aktiva-skills@merit-aktiva-skills`. Useful if you want the marketplace available without re-adding it each time.
+
+### Verifying installation
+
+```bash
+/plugin list
+```
+
+You should see `merit-aktiva-skills` enabled. Try `merit-aktiva-core` in your next prompt:
+
+> "Show me what merit-aktiva-core knows about authentication."
+
+Claude should load the skill and summarise the HMAC signing recipe.
 
 ## How it compares
 
@@ -153,14 +213,24 @@ See plugin ei ole MCP server ega kooditeek — see koosneb kuuest **Markdown-fai
 
 ## Kiire alustamine
 
-```bash
-# Paigalda plugin
-/plugin install github.com/arturl95/merit-aktiva-skills
+Käivita Claude Code'is:
 
-# Sea API andmed (Merit Aktiva → Seaded → API seadistus)
+```bash
+# 1. Lisa see repo plugina-turuplatsina
+/plugin marketplace add arturl95/merit-aktiva-skills
+
+# 2. Paigalda plugin
+/plugin install merit-aktiva-skills@merit-aktiva-skills
+```
+
+Seejärel sea API andmed terminalis (Merit Aktiva → Seaded → API seadistus):
+
+```bash
 export MERIT_API_ID="sinu-api-id-guid"
 export MERIT_API_KEY="sinu-api-võti-salasõna"
 ```
+
+Alternatiivsete paigaldusviiside (kohalik kloon, `--plugin-dir`, `settings.json` kaudu) jaoks vaata [Installation](#installation) sektsiooni inglisekeelses osas.
 
 Seejärel küsi Claude'ilt:
 
