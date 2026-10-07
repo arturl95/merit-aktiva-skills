@@ -59,103 +59,11 @@ Verified response row (live test, 2026-10):
   "Amount": 1.00, "CurrencyCode": "EUR", "Document": "", "Description": "<remittance text>" }
 ```
 
-- `PartName` is returned although the docs don't list it.
-- There is **no explicit linked/confirmed flag**. `Document` was empty for an unlinked line, so it is most likely the linked document number once a line is matched. That isn't verified on a matched line yet; confirm it before relying on it as the "unmatched" signal.
+- `PartName` is returned although the docs don't list it. `RefNo` is added when the bank line carries a structured reference.
+- **`PaymentImports` returns only lines that are not yet confirmed.** Once a line is linked and confirmed ("Kinnita") in the UI, it disappears from the response. Linked-but-unconfirmed lines stay and still show `Document: ""`. So "unmatched/unconfirmed bank lines" = the `PaymentImports` result, with `BookingDate` older than your SLA.
 
-## Workflow for an AI agent reconciler
+### Auto-matching in practice (verified)
 
-A typical agent flow:
-
-```
-1. Download camt.053 from the bank (or accept a file path from the user).
-2. Validate it parses as XML and contains at least one BkToCstmrStmt.
-3. POST /api/v2/sendcamt53 with the raw XML as the request body.
-4. Parse the plain-text response to get imported count vs total count.
-5. If unmatched lines exist (total > imported):
-     a. In the Merit UI (Bank → Reconcile), unmatched lines appear for manual review.
-        The API does not expose a structured unmatched-lines list.
-     b. For each unmatched line, propose a match based on:
-        - Counterparty name fuzzy-matched against getcustomers / getvendors.
-        - Amount + date matched against getinvoices (open) and getpurchorders (open).
-     c. Show proposals to the user as a table.
-     d. On user confirmation, post sendpayment / sendPaymentV for each accepted match.
-6. Report final state.
-```
-
-## XML structure crash course
-
-camt.053 is a structured bank statement. The relevant nodes for matching:
-
-```
-<BkToCstmrStmt>
-  <Stmt>
-    <Acct>
-      <Id><IBAN>EE38...</IBAN></Id>
-    </Acct>
-    <Bal>...</Bal>
-    <Ntry>                    <!-- one per transaction -->
-      <Amt Ccy="EUR">123.45</Amt>
-      <CdtDbtInd>CRDT</CdtDbtInd>     <!-- CRDT incoming, DBIT outgoing -->
-      <BookgDt><Dt>2026-05-12</Dt></BookgDt>
-      <NtryDtls>
-        <TxDtls>
-          <RltdPties>
-            <Dbtr><Nm>Acme OÜ</Nm></Dbtr>
-            <DbtrAcct><Id><IBAN>EE49...</IBAN></Id></DbtrAcct>
-          </RltdPties>
-          <RmtInf>
-            <Strd>
-              <CdtrRefInf><Ref>20260042</Ref></CdtrRefInf>  <!-- the viitenumber -->
-            </Strd>
-          </RmtInf>
-        </TxDtls>
-      </NtryDtls>
-    </Ntry>
-  </Stmt>
-</BkToCstmrStmt>
-```
-
-The `<CdtrRefInf>/<Ref>` element is the viitenumber that drives Merit's primary auto-match. If your customer-facing invoices include the viitenumber on the PDF (Merit does this automatically), >90% of inbound payments match without manual intervention.
-
-## Sending the file
-
-The XML is posted as a raw body — no base64 encoding or JSON wrapper needed:
-
-```python
-import requests, hashlib, hmac, time, json
-
-# Build the Merit auth params (same pattern as all Merit API calls)
-# ... see merit-aktiva-core for the full signature construction ...
-
-with open("stmt-2026-05-12.xml", "rb") as f:
-    xml_bytes = f.read()
-
-response = requests.post(
-    f"https://aktiva.merit.ee/api/v2/sendcamt53?ApiId=...&timestamp=...&signature=...",
-    data=xml_bytes,
-    headers={"Content-Type": "application/xml"}
-)
-print(response.text)  # "Imporditi 22 makserida (ridu kokku 27)"
-```
-
-For shell:
-
-```bash
-curl -X POST \
-  "https://aktiva.merit.ee/api/v2/sendcamt53?ApiId=...&timestamp=...&signature=..." \
-  --data-binary @stmt-2026-05-12.xml \
-  -H "Content-Type: application/xml"
-```
-
-## Common pitfalls
-
-1. **Wrong endpoint name** — use `sendcamt53`, not `sendbankstatement`. The latter does not exist.
-2. **JSON body instead of raw XML** — the body must be raw XML, not a JSON object with a `FileContent` base64 field. Wrong content type or body format results in rejection.
-3. **Mixed periods** — Merit expects the file's date range to align with its expected import cadence. Importing a 6-month-old statement may re-create payments that are already in the ledger; check for duplicates.
-4. **Non-camt.053 formats** — Merit also accepts ISO 20022 camt.053.001.10 (newer schema). Stick to camt.053.001.02 or camt.053.001.10 for reliability; other formats are not guaranteed.
-5. **File too large** — daily statements are tiny; monthly statements are small. If you're pushing megabytes, you're probably sending the wrong file.
-
-## Source
-
-- https://api.merit.ee/connecting-robots/reference-manual/bank-statement/
-- ISO 20022 camt.053 — https://www.iso20022.org/iso-20022-message-definitions
+- An incoming payment carrying the sales invoice's viitenumber (`<CdtrRefInf><Ref>`) was auto-linked (green).
+- An outgoing payment with the exact amount, vendor name and "Arve <BillNo>" in the text was **not** auto-linked, not even after "Seo uuesti", when the vendor had several open items. Plan your own matcher for non-reference lines.
+- A line marked as prepayment in the Võlgnevused window ("Ettemaksu summa") books D1350 / C bank on confirm.

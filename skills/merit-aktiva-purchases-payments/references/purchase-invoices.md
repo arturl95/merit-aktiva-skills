@@ -53,6 +53,17 @@ Note: the row-level `Description` field is **not** a top-level InvoiceRowObject 
 { "VendorId": "...", "BillId": "...", "BillNo": "...", "RefNo": "...", "BatcInfo": {} }
 ```
 
+### Verified posting behaviour (live tests, 2026-10)
+
+- **Item with a unit of measure:** if the item has a unit (e.g. `tk`), you must send `Item.UOMName` with it, otherwise 400 `"Item with code mat has unit tk in the program."`
+- **Company not VAT-registered** (Ettevõtte andmed → KM kohustuslane ≠ Jah): Merit silently adds the VAT into the row cost (price 10 + 24% booked as 12.40 with tax "-"). Check the company setting before blaming the payload.
+- **EU vendor (CountryCode in EU + VatRegNo) with a normal "24%" TaxId:** Merit applies the reverse charge automatically (D 2314 / C 2310). No special tax code needed.
+- **Foreign currency:** `CurrencyRate` omitted gives the ECB rate of `DocDate` (verified against the ECB API). GL batch date = `TransactionDate`.
+- **Import VAT** (forwarder/customs invoice): the "toll" TaxId is ignored via the API (the base went to the row account). What works is a row with `GLAccountCode` 2313 (Impordilt tasutud km), the VAT amount as price, and tax "-". It lands on KMD line 5.1.
+- **The invoice `BankAccount` is not written to the vendor card and not returned by `getpurchorder`**, but Merit's payment-order screen uses it as the payee IBAN. If you need an IBAN-change check, keep your own history.
+- Duplicate vendor + `BillNo` → 400 "Duplicate invoice number."; the same `BillNo` for a different vendor is accepted.
+
+
 ## Reverse-charge purchase invoice — worked example
 
 Buying €100 of consulting from a German supplier (intra-EU service, Art. 44 reverse charge). The vendor charges 0% VAT; you self-account for 24% Estonian VAT on both sides (input and output) so net VAT cash is zero, but both KMD lines are populated.
@@ -114,6 +125,17 @@ Use cases:
 | Per-row `GLAccountCode` | Kept, so different accounts per row work (e.g. materials row → 1310, other row → 4050) |
 | `Vendor` given as new vendor (Name/RegNo) | Vendor card is **not** created; the response `VendorId` is `00000000-0000-0000-0000-000000000000`. The UI shows the name as text, and the vendor is created or matched on approval |
 | Same `BillNo` + same vendor sent twice | **Rejected**: 400 `{"Message":"Duplicate invoice number."}`, already at queue level |
+
+| `TransactionDate` (booking/"Kande kuupäev") ≠ `DocDate` | **v2 keeps it; v1 ignores it** (booking date = DocDate). Rate is still ECB of `DocDate`. Use v2 when posting date must differ (e.g. non-EU goods booked at receipt date) |
+| Existing vendor (matched by name/RegNo) | `VendorId` returned |
+
+### Approving a queued invoice (UI) — what the approver must do
+
+- **Every row needs a Merit item (Artikkel) before "Salvesta ostuarvena"**, otherwise you get "Artikkel on kohustuslik". The API's `Item.Code` lands only in "Algdok. artikkel" (source item); the Artikkel column starts empty, even when the code exists in Merit.
+- **Choosing an Artikkel overwrites the row account with that item's purchase account** (e.g. 1310 → 4002). Design items as one per target account (Merit's own rule) and send those codes, so the mapped item and your `GLAccountCode` agree.
+- After the first mapping, **later invoices from the same vendor with the same source codes are auto-mapped**, with accounts intact. Mapping is **per vendor**: a new vendor with the same codes is not auto-mapped.
+- With kinnitusring on (Ettevõtte andmed → "Ettevõttes on kasutusel kinnitusring"), "Salvesta ostuarvena" stays disabled until an approver confirms: Lisa kinnitaja → Saada kinnitamisele (emails the approver) → Kinnita.
+- `sendpurchinvoice` posts directly even when kinnitusring is on. Only the queue goes through approval.
 
 **Queued invoices are invisible to the API.** `getpurchorder` with the returned `BillId` gives 400 `"Pole sellist arvet."`. `getpurchorders` does not list them, and `GetPOrders` (that's purchase *orders*) doesn't either. `deletepurchinvoice/{BillId}` gives 404 `api-wrongguid`. Consequences:
 - Keep your own log of what you sent (BillId, BillNo, vendor, amounts).

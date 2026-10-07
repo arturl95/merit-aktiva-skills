@@ -152,3 +152,10 @@ POST /api/v2/senditems
 
 - https://api.merit.ee/connecting-robots/reference-manual/items/add-items/
 - https://api.merit.ee/connecting-robots/reference-manual/items/items-list/
+
+
+## Verified in live tests (2026-10)
+
+- Create items with `POST /api/v2/senditems` `{ "Items": [ { "Type": 1, "Usage": 3, "Code": "...", "Description": "...", "UOMName": "tk" } ] }` (v1 returned 404).
+- **An item's type can't be changed after stock transactions**: "Artikliga on tehtud lao tehinguid. Ei saa muuta artikli liiki." To stop stock accounting in Merit, create new Kaup/Teenus items and set the old ones inactive.
+- **A Laokaup item on a sales invoice auto-books COGS** (D 4000 / C inventory account). If stock is kept in another system and Merit only gets a monthly stock-value entry, use Kaup/Teenus items on sales, or COGS gets double-counted.
