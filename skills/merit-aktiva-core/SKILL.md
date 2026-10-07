@@ -68,7 +68,7 @@ See [authentication.md](references/authentication.md) for a worked example, cros
 | 404 | Wrong path or missing required query params | Confirm v1 vs v2 path; confirm all three of apiId/timestamp/signature are in the URL. |
 | 429 | Rate limited | Sleep `Retry-After` seconds, then exponential backoff. See `conventions.md`. |
 
-See [error-playbook.md](references/error-playbook.md) for the full taxonomy and the 14 known gotchas with recovery patterns.
+See [error-playbook.md](references/error-playbook.md) for the full taxonomy and the known gotchas (14 from the docs + verified live-test findings) with recovery patterns.
 
 ## Rate limits
 

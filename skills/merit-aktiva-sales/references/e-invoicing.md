@@ -77,7 +77,7 @@ POST /api/v2/getpurchaseinvoices
 { "PeriodStart": "20260501", "PeriodEnd": "20260512" }
 ```
 
-They appear as draft purchase invoices that can be approved (via `sendpurchinvoiceforapproval` flow) or directly read.
+They land in **Ost → Kinnitamata ostuarved** (unconfirmed purchase invoices) for approval in the UI. Note that `sendpurchinvoiceforapproval` does not exist. To push an e-invoice XML into the same queue yourself, use `POST /api/v2/sendpurchorderxml` with the raw XML body (see `merit-aktiva-purchases-payments/references/purchase-invoices.md`). Unconfirmed invoices are not returned by the purchase-invoice list/get endpoints until approved.
 
 ## Source
 

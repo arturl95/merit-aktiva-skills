@@ -39,7 +39,28 @@ Merit attempts to match each statement line to an open invoice in this order:
 2. **Counterparty IBAN + amount** — if the line has the customer/vendor's known IBAN and the amount matches an outstanding invoice within ±€0.05, it matches.
 3. **Amount + date proximity** — last resort; the line is suggested but flagged as needing manual confirmation.
 
-Lines with no match end up as **"to reconcile"** entries in the Merit UI (Bank → Reconcile). The API does not expose a structured unmatched-lines list. Use `getpayments` with `DateType: 1` (ChangedDate) to poll for newly-created payment records after an import.
+Lines with no match end up as **"to reconcile"** entries in the Merit UI (Bank → Reconcile). Use `getpayments` with `DateType: 1` (ChangedDate) to poll for newly-created payment records after an import.
+
+## Reading imported lines — `PaymentImports`
+
+```
+GET /api/v2/PaymentImports?bankId=<bank-guid>&bookingDateFrom=YYYY-MM-DD&bookingDateTo=YYYY-MM-DD&withLines=true
+(signature query params appended as usual; signed body is the empty string)
+```
+
+- Dates here are ISO `YYYY-MM-DD`, unlike most Merit endpoints.
+- Max window is 3 months. Longer returns 400 `Valideerimine ebaõnnestus (PeriodTooLong)`.
+- Get `bankId` from `getbanks`.
+
+Verified response row (live test, 2026-10):
+
+```json
+{ "BookingDate": "2026-10-06T00:00:00", "AccServiceRRef": "<bank ref>", "PartName": "<counterparty name>",
+  "Amount": 1.00, "CurrencyCode": "EUR", "Document": "", "Description": "<remittance text>" }
+```
+
+- `PartName` is returned although the docs don't list it.
+- There is **no explicit linked/confirmed flag**. `Document` was empty for an unlinked line, so it is most likely the linked document number once a line is matched. That isn't verified on a matched line yet; confirm it before relying on it as the "unmatched" signal.
 
 ## Workflow for an AI agent reconciler
 
