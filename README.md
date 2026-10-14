@@ -186,6 +186,13 @@ The skills are Markdown files. Any LLM that can read text and follow instruction
 ### Why "AI agents" and not "MCP server"?
 This plugin is a set of Claude Code *skills* (Markdown instructions), not an MCP server (a running process). The naming reflects what it actually is. The keywords `merit aktiva mcp` and `accounting mcp server` are addressed by the AI-agent framing because the use case overlaps.
 
+## Need the integration built, not just the skills?
+
+This plugin is the open part of how [AlusLabs](https://aluslabs.com) builds Merit Aktiva API integrations for Estonian companies: web shop orders to sales invoices, bank statement matching, CRM to accounting. What that work looks like, and a real HMAC-signed request against the live API, is written up here:
+
+- [Merit Aktiva integratsioon ja API-liidestus](https://aluslabs.com/integratsioonid/merit-aktiva) (Estonian)
+- [Merit Aktiva API: a real HMAC-signed request](https://aluslabs.com/blog/merit-aktiva-api-juhend-ai-agent-2026) (Estonian)
+
 ## Security & disclaimer
 
 - **Credentials**: only set `MERIT_API_ID` / `MERIT_API_KEY` as environment variables. Never paste them into chat. Never commit them to git.
@@ -307,6 +314,13 @@ Ei saa. KMD esitamine toimub jätkuvalt [emta.ee](https://www.emta.ee/) e-MTA po
 
 ### Kas see on ametlik AS Merit Tarkvara toode?
 **Ei.** Tegemist on kogukonna loodud pluginaga, mis ei ole AS-iga Merit Tarkvara seotud. Enne KMD/TSD esitamist kontrolli alati maksumäärad ja reeglid üle [emta.ee](https://www.emta.ee/) lehelt.
+
+## Vajad Merit Aktiva API liidestust, mitte ainult oskusi?
+
+See plugin on avalik osa sellest, kuidas [AlusLabs](https://aluslabs.com) ehitab Eesti ettevõtetele Merit Aktiva API liidestusi: e-poe tellimused müügiarveteks, pangaväljavõtte sobitamine, CRM ja raamatupidamine. Kuidas selline liidestus käib ja milline näeb välja päris HMAC-allkirjastatud päring Merit Aktiva API vastu, on kirjas siin:
+
+- [Merit Aktiva integratsioon ja API-liidestus](https://aluslabs.com/integratsioonid/merit-aktiva)
+- [Merit Aktiva API: reaalne HMAC-allkirjastatud päring](https://aluslabs.com/blog/merit-aktiva-api-juhend-ai-agent-2026)
 
 ## Vastutus
 
