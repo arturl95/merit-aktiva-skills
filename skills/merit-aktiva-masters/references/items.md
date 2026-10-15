@@ -14,7 +14,7 @@ The endpoint name is plural — it accepts a batch in `{ "Items": [ ... ] }`.
 | `Description` | string(100) | yes | Primary description. Truncated if too long. |
 | `Type` | enum | yes | 1 = stock, 2 = service, 3 = item (non-stock physical) |
 | `Usage` | enum | yes | 1 = sales, 2 = purchases, 3 = both |
-| `UOMName` | string(64) | yes for stock | Unit of measure (`tk`, `h`, `kg`, …). Must exist or be added via `senduom`. |
+| `UOMName` | string(64) | yes for stock | Unit of measure, matched by **name** against `GET /api/v2/units` (a GET; POST is 405). A fresh Estonian company has `tk`, `km`, `tund`, `kuu`, `kg`, `m²`, `m³`, `ltr`; `h`, `m`, `kompl` do not exist and fail with `Puudub mõõtühik nimega X`. Add via `POST /api/v2/senduom` (`Name`, `NamePlural`, `NameEN`, …; returns the Id or `api-uomexsist`). |
 | `EANCode` | string | no | Barcode |
 | `DefLocationCode` | string(20) | required if multi-stock company | Default warehouse |
 | `DescriptionEN`, `DescriptionRU`, `DescriptionFI` | string(100) | no | Translations |

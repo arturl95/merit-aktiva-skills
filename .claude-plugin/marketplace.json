@@ -8,8 +8,8 @@
     {
       "name": "merit-aktiva-skills",
       "source": "./",
-      "description": "Merit Aktiva for AI agents — six skills covering authentication, masters (customers/vendors/items/taxes/accounts), sales, purchases & payments, ledger & reports, plus 2026 Estonian tax rules.",
-      "version": "0.1.0",
+      "description": "Merit Aktiva for AI agents — seven skills covering authentication, masters (customers/vendors/items/taxes/accounts), sales, offers/quotes, purchases & payments, ledger & reports, plus 2026 Estonian tax rules.",
+      "version": "0.2.1",
       "author": {
         "name": "Artur"
       },
