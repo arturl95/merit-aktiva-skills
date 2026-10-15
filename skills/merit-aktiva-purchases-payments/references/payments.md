@@ -157,3 +157,34 @@ If you pay a USD invoice from a EUR bank account, supply `CurrencyCode: "USD"` a
 
 - https://api.merit.ee/connecting-robots/reference-manual/payments/create-payment/
 - https://api.merit.ee/faq/ (no-partials confirmation, deletion constraints)
+
+
+## Verified in live tests (2026-10)
+
+### `sendPaymentV` (v2) in foreign currency
+
+Paying a USD invoice from an EUR bank, with `CurrencyCode: "USD"` and no rate, uses the latest ECB rate. The FX difference goes to Merit's default "Kahjum/Kasum valuutakursimuutustest" accounts (4950/3520 in the standard chart, which are operating accounts). You can change these in Seadistused → Vaikimisi kontod. Calling it without `BillNo` → 400 "Puudub selliste parameetritega tasumata ostuarve." (it can't create a prepayment).
+
+### Prepayment to a vendor — `POST /api/v2/Banks/{bankId}/PrePayments/ForVendor/{vendorId}`
+
+```json
+{ "Description": "Advance", "DocumentNumber": "PF-2", "CurrencyCode": "EUR", "DocumentDate": "2026-10-06", "Amount": 62 }
+```
+
+Books D1350 (Tarnija ettemaksu konto) / C bank. Merit does **not** offset it automatically when the invoice arrives. Offset with `sendsettlement`.
+
+### Offsetting — `POST /api/v2/sendsettlement`
+
+```json
+{ "DocDate": "20261007", "CurrencyCode": "EUR", "CustLines": [],
+  "VendLines": [ { "CustVendName": "Vendor OÜ", "CustVendRegNo": "123", "DocNo": "INV-1", "Amount": 62 },
+                 { "CustVendName": "Vendor OÜ", "CustVendRegNo": "123", "DocNo": "PF-2", "Amount": -62 } ] }
+```
+
+**Gotcha:** omitting `"CustLines": []` → 500 `NullReferenceException`. Result: D2110 / C1350, invoice `Paid: true`.
+
+### Payment orders (UI only, there's no API)
+
+- Maksed → bank → Maksekorraldused → Uus maksekorraldus lists unpaid invoices in the bank's currency, groups them by vendor and creates orders. There is no approval step; signing happens in the bank.
+- **The payee IBAN is taken from the purchase invoice**, not the vendor card.
+- In our test, foreign-currency (USD) invoices did not appear, neither on the EUR account nor on a USD bank account with the same IBAN. Expect to pay those directly in the internet bank.

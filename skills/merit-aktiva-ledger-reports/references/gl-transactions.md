@@ -153,3 +153,11 @@ This is best practice for audit anyway — never edit history.
 - https://api.merit.ee/connecting-robots/reference-manual/general-ledger-transactions/get-list-of-gl-transactions/
 - https://api.merit.ee/connecting-robots/reference-manual/general-ledger-transactions/getting-gl-transaction-details/
 - https://api.merit.ee/connecting-robots/reference-manual/general-ledger-transactions/getting-gl-transactions-full-details/
+
+
+## Verified in live tests (2026-10)
+
+- `sendglbatch` accepts `Attachment {FileName, FileContent}`; `getglbatch` then shows `FileExists: true`.
+- An unknown account gives 400 `"Puudub PR konto 1351."`. Accounts can't be created via the API; add them in Seadistused → Kontoplaan.
+- A date outside open financial years (e.g. a 1 January reversal before the next year exists) gives 400 `"Dokumendi kuupäev ei asu aktiivses majandusaastas või lubatud salvestamisvahemikus."`. Open the year in Seadistused → Majandusaastad. The same screen holds "Salvestamine lubatud perioodis" (Merit's period lock).
+- `getbalancerep` (`EndDate`, `PerCount: 1`) returns `Details[].Balance` as a **list** (one value per period), so read `[0]`. An account with zero balance may be absent.

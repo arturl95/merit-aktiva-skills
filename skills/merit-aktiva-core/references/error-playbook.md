@@ -61,7 +61,7 @@ if resp.status_code == 429:
 - Parse the first line of the trace — it usually names the missing or invalid field.
 - Common offenders: missing `VatAmount` when `TaxId` is set on a GL row, missing `ItemCostAmount` on a credit-invoice stock row, sum of row totals not matching declared `TaxAmount`/`TotalAmount` after rounding.
 
-## The 14 documented gotchas
+## The documented gotchas
 
 Drawn from the official FAQ and per-endpoint pages, with symptom and fix.
 
@@ -93,6 +93,19 @@ Drawn from the official FAQ and per-endpoint pages, with symptom and fix.
 ### Response handling
 
 14. **200 with stack trace bodies.** Symptom: parsing succeeds but data is missing. Fix: before parsing JSON, check for `at System.` / `Microsoft.AspNet` substrings and treat the response as a 422.
+
+### Verified in live tests (2026-10)
+
+15. **ISO dates silently dropped on `sendpurchorder`.** Symptom: 200 OK, but the queued invoice has empty Kuupäev/Maksetähtpäev/Kande kuupäev and rate 0. Fix: send dates as `YYYYMMDD`.
+16. **`Duplicate invoice number.`** Symptom: 400 on `sendpurchorder` / `sendpurchinvoice`. Cause: same vendor + `BillNo` already exists, including in the approval queue. Fix: treat it as a duplicate and don't retry.
+17. **`Document date is not in the active financial year or in range where saving is allowed`** (EE: "Dokumendi kuupäev ei asu aktiivses majandusaastas…"). Symptom: 400 on posting endpoints (`sendpurchinvoice`, `sendglbatch` etc.), while `sendpurchorder` still succeeds. Cause: no open financial year for that date, a lock date ("Salvestamine lubatud perioodis"), or an **expired licence**. Fix: not a payload bug; the company has to open the period or year.
+18. **`PeriodTooLong`.** Symptom: 400 `urn:AktivaValidationException` on `PaymentImports`. Fix: max 3-month window per call.
+19. **Queued purchase invoices are invisible.** Symptom: `getpurchorder` → `"Pole sellist arvet."`, `deletepurchinvoice/{id}` → 404 `api-wrongguid` for a `BillId` returned by `sendpurchorder`. Fix: by design; keep your own send log, and delete in the UI.
+
+20. **`Item with code X has unit tk in the program.`** Fix: send `Item.UOMName` matching the item's unit.
+21. **500 `NullReferenceException` on `sendsettlement`.** Fix: include `"CustLines": []` even for vendor-only settlements.
+22. **`Puudub PR konto NNNN.`** on `sendglbatch`: the account doesn't exist. Create it in the UI (there's no API for that).
+23. **`Artikkel on kohustuslik`** when saving a queued purchase invoice in the UI: every row needs a mapped Merit item. See purchase-invoices.md.
 
 ## Operational defaults
 

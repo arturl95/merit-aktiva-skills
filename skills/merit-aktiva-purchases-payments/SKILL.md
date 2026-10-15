@@ -94,6 +94,12 @@ POST /api/v2/sendpurchorder
 
 Once approved in the Merit UI, the invoice posts automatically. Until approved it doesn't affect P&L or AP balances.
 
+Verified gotchas (details in [purchase-invoices.md](references/purchase-invoices.md#verified-behaviour-live-tests-2026-10)):
+- Dates **must** be `YYYYMMDD`. ISO `YYYY-MM-DD` gets 200 OK but the dates are silently dropped.
+- `CurrencyRate` is ignored; Merit applies its own rate for the document date.
+- Queued invoices can't be read, listed or deleted via the API. Keep your own send log.
+- Duplicate vendor + `BillNo` is rejected with 400 "Duplicate invoice number." even in the queue.
+
 ## Payment rules
 
 ### `sendpayment` (for sales invoices) and `sendPaymentV` (for purchase invoices)
