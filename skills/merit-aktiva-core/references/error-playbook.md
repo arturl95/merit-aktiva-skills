@@ -107,6 +107,15 @@ Drawn from the official FAQ and per-endpoint pages, with symptom and fix.
 22. **`Puudub PR konto NNNN.`** on `sendglbatch`: the account doesn't exist. Create it in the UI (there's no API for that).
 23. **`Artikkel on kohustuslik`** when saving a queued purchase invoice in the UI: every row needs a mapped Merit item. See purchase-invoices.md.
 
+### Verified in live tests (2026-11)
+
+24. **`api-missingurlparam`.** Symptom: 400 on any endpoint. Cause: one of the connection URL parameters (`ApiId`, `timestamp`, `signature`) is missing or empty — a config problem (unset API id/key), not the record's data. Fix: check the credentials, don't touch the payload.
+25. **`custexists` on `sendcustomer`.** Symptom: create rejected although `getcustomers` by `RegNo`/`VatRegNo` found nothing. Cause: a customer with the same `Name` exists but has no registry/VAT number (typically typed in by hand in the UI). Fix: `getcustomers` by `Name`, keep only exact (trimmed) name matches, link if exactly one, otherwise fail and ask a human.
+26. **Several customers share one `RegNo`/`VatRegNo`.** Symptom: `getcustomers` returns more than one row. Fix: refuse to post; picking one books the invoice on an arbitrary duplicate. Have the duplicates merged in Merit, then retry.
+27. **`getpayments` field names differ from the manual.** See [payments.md](../../merit-aktiva-purchases-payments/references/payments.md#listing-payments): live v2 sends a top-level array with `PHId` + `Details`, not `PIHId` + `PaymAPIDetails`.
+
+28. **`401 invalidSignature` right after rotating the key.** Cause: a new API key belongs to a new API ID; signing with the new key and the old ID fails. Fix: replace the ID and key as a pair. The old pair keeps working until it is deleted in Merit, so switch every consumer first, then delete it.
+
 ## Operational defaults
 
 - Timeout for any single request: 30 seconds.

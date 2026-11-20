@@ -67,3 +67,11 @@ Verified response row (live test, 2026-10):
 - An incoming payment carrying the sales invoice's viitenumber (`<CdtrRefInf><Ref>`) was auto-linked (green).
 - An outgoing payment with the exact amount, vendor name and "Arve <BillNo>" in the text was **not** auto-linked, not even after "Seo uuesti", when the vendor had several open items. Plan your own matcher for non-reference lines.
 - A line marked as prepayment in the Võlgnevused window ("Ettemaksu summa") books D1350 / C bank on confirm.
+
+## Direct bank connection instead of file import (verified 2026-11)
+
+- On the bank account card in Merit (Maksed → Pangad → the account): **"Loo otseühendus pangaga"** makes Merit fetch the statement from the bank itself (LHV via LHV Connect); **"Kinnita automaatselt seotud maksed"** confirms the lines Merit can link to an invoice (by reference number) without a person pressing "Kinnita".
+- Cost: Merit's own "Maksed" guide says the automatic statement fetch is free for Merit users, and LHV's business price list lists the Connect agreement and monthly fee as free (one older translated Merit guide still says €5/month; treat it as outdated). Payments *sent* through Connect cost normal transfer fees.
+- Fetched lines that are not linked (e.g. a tax payment) sit unconfirmed under Panga väljavõtte import. **Unconfirmed lines do not appear in `getpayments`**: a company can show bank lines in the UI and zero payments over the API. Use `PaymentImports` to see them.
+- Wise has no direct connection here. Its statement API returned 403 for an EU business token in our test even though profile and balance reads worked; the reliable route is downloading camt.053 from Wise and importing it (or `sendcamt53`).
+

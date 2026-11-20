@@ -191,6 +191,15 @@ POST /api/v2/sendcustomer
 }
 ```
 
+## Resolving a customer before posting (verified live, 2026-11)
+
+1. `getcustomers` by `RegNo`; if empty, by `VatRegNo`.
+2. More than one match → stop. Posting to any one of them books on an arbitrary duplicate; get them merged in Merit first.
+3. Exactly one → use its `CustomerId`.
+4. None → `sendcustomer`. If it fails with `custexists`, a same-`Name` customer exists without registry/VAT numbers: look it up by `Name`, accept only a single exact (trimmed) match, otherwise fail and ask a human.
+
+Never fall back to fuzzy name matching or "take the first row".
+
 ## Source
 
 - https://api.merit.ee/connecting-robots/reference-manual/customers/create-customer/

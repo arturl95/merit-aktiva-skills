@@ -123,7 +123,43 @@ POST /api/v2/getpayments
 
 > Period length max 3 months. `DateType`: 0 = DocumentDate, 1 = ChangedDate.
 
-Response fields include: `PIHId`, `BankName`, `CounterPartType`, `CounterPartName`, `CurrencyCode`, `CurrencyRate`, `DocumentDate`, `DocumentNo`, `Direction`, `Amount`, `CounterPartId`, `EInvSentDate`. v2 also includes: `DocId`, `ChangedDate`, `PaymAPIDetails` (object with `PaymId`, `DocNo`, `DocAmount`, `PaidAmount`, `CurrencyCode`, `CurrencyRate`, `DocId`).
+The reference manual lists the response as `PIHId` + `PaymAPIDetails`. **The live v2 API does not send those keys** (verified on a real customer receipt, 2026-11). What actually comes back is a **top-level JSON array** of payments:
+
+```json
+[
+  {
+    "PHId": "<payment-guid>",            // payment id (manual says PIHId)
+    "BankName": "<bank>",
+    "CounterPartType": 2,
+    "CounterPartName": "...",
+    "CurrencyCode": "EUR",
+    "CurrencyRate": 1.0,
+    "DocumentDate": "2026-11-20T00:00:00",
+    "DocumentNo": "1",
+    "Direction": 1,                   // 1 customer receipt, 2 vendor payment, 3 other income, 4 other expense
+    "Amount": 100.0,
+    "Details": [                      // allocations to documents (manual says PaymAPIDetails, an object)
+      {
+        "PaymId": "<payment-guid>",
+        "DocId": "<sales-invoice-guid>",       // SIHId of the paid sales invoice
+        "DocNo": "<invoice-no>",
+        "DocAmount": 500.0,
+        "PaidAmount": 100.0,
+        "CurrencyCode": "EUR",
+        "CurrencyRate": 1.0
+      }
+    ],
+    "ChangedDate": "2026-11-20T16:42:06.383"
+  }
+]
+```
+
+Parse this strictly and fail loudly on any other shape. Reading `resp.PaymAPIDetails ?? []` on this response yields `undefined` → "0 payments" with no error, so a payment poller reports success forever. `DocId` can be the zero GUID (`00000000-0000-0000-0000-000000000000`) for an unallocated line; treat that as "no document".
+
+A payment deleted (or re-allocated) in Merit simply stops appearing in later `getpayments` windows; there is no tombstone. Two traps when mirroring payments:
+
+- **Deleting a payment does not move the sales invoice's `ChangedDate`**, so `getinvoices` filtered by changed date never surfaces the now-less-paid invoice. Read the invoice itself with `getinvoice` and compare its `PaidAmount` / `Payments` with what you stored.
+- **Absence alone is not proof.** Remove a mirrored payment only when it is dated inside the window you fetched, its allocation is gone from `getpayments`, it is gone from the invoice's `Payments`, and the removed rows account for the drop in `PaidAmount` to the cent. Otherwise fail loudly and let a human look.
 
 ## `getpaymenttypes`
 
