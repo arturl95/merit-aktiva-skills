@@ -3,7 +3,7 @@
 > Plug **Merit Aktiva** — Estonia's most-used accounting software — into Claude, ChatGPT, Cursor and any AI agent. Bookkeeping, invoicing, VAT (KMD), and the full **Merit Aktiva API** in six Claude Code skills. Bilingual: **English · Eesti keeles**.
 
 [![Plugin](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://code.claude.com/docs/en/plugins.md)
-[![Version](https://img.shields.io/badge/version-0.1.0-green)](https://github.com/arturl95/merit-aktiva-skills/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0-green)](https://github.com/arturl95/merit-aktiva-skills/releases)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![Rates verified](https://img.shields.io/badge/rates_verified-2026--05--12-success)](skills/estonian-bookkeeping/SKILL.md)
 [![Made in Estonia](https://img.shields.io/badge/made_in-Estonia%20🇪🇪-blue)](#merit-aktiva-ai-agentidele--eestikeelne-juhend)
