@@ -16,6 +16,8 @@ The sales side of Merit Aktiva. Covers `sendinvoice` (v2), credit invoices, list
 - "Email the invoice", "get the invoice PDF".
 - Triggering e-invoices via Omniva/Telema/bank for customers configured for the network.
 
+Not for quotes, sales orders or prepayment invoices (pakkumine, tellimus, ettemaksuarve): those are `merit-aktiva-offers`, and an accepted quote becomes an invoice through `offer2inv` rather than a fresh `sendinvoice`.
+
 ## Pre-flight (every call)
 
 1. Confirm `MERIT_API_ID` / `MERIT_API_KEY` are loaded — see `merit-aktiva-core`.
@@ -143,3 +145,4 @@ Optional: `"AddAttachment": true` includes any attached file in the response. Re
 - For resolving customer / item / TaxId: `merit-aktiva-masters`.
 - For which VAT code applies: `estonian-bookkeeping`.
 - For recording the payment that closes the invoice: `merit-aktiva-purchases-payments`.
+- For quotes, sales orders and prepayment invoices, and converting an accepted quote into an invoice: `merit-aktiva-offers`.

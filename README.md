@@ -1,6 +1,6 @@
 # Merit Aktiva for AI Agents
 
-> Plug **Merit Aktiva** — Estonia's most-used accounting software — into Claude, ChatGPT, Cursor and any AI agent. Bookkeeping, invoicing, VAT (KMD), and the full **Merit Aktiva API** in six Claude Code skills. Bilingual: **English · Eesti keeles**.
+> Plug **Merit Aktiva** — Estonia's most-used accounting software — into Claude, ChatGPT, Cursor and any AI agent. Bookkeeping, invoicing, VAT (KMD), and the full **Merit Aktiva API** in seven Claude Code skills. Bilingual: **English · Eesti keeles**.
 
 [![Plugin](https://img.shields.io/badge/Claude_Code-plugin-blue)](https://code.claude.com/docs/en/plugins.md)
 [![Version](https://img.shields.io/badge/version-0.1.0-green)](https://github.com/arturl95/merit-aktiva-skills/releases)
@@ -16,7 +16,7 @@
 
 **Merit Aktiva for AI Agents** is an open-source [Claude Code](https://code.claude.com) skills plugin that lets AI agents — Claude, ChatGPT, Cursor, or anything that can read instructions — operate [Merit Aktiva](https://www.merit.ee/), Estonia's #1 accounting software (majandustarkvara). It wraps the official [Merit Aktiva API](https://api.merit.ee/) with HMAC-SHA256 authentication, the complete v2 endpoint surface, and — critically — the **2026 Estonian tax rules** (käibemaks 24%, distributed-profit CIT, payroll, KMD codes). Use it to automate sales invoicing, purchase invoices, e-arve import, bank reconciliation, GL adjustments, and month-end VAT (KMD) reporting from any LLM.
 
-This plugin does **not** ship code. It ships *instructions* — six skills your AI reads to learn the API, the gotchas, and the Estonian bookkeeping rules. Your agent talks to `api.merit.ee` directly over HTTPS.
+This plugin does **not** ship code. It ships *instructions* — seven skills your AI reads to learn the API, the gotchas, and the Estonian bookkeeping rules. Your agent talks to `api.merit.ee` directly over HTTPS.
 
 ## Quick start
 
@@ -51,6 +51,7 @@ Claude loads the right skill(s), resolves customer/item/tax codes, builds the AP
 ## Features
 
 - **Sales invoicing** — `sendinvoice` v2 with all the rounding and TaxId rules baked in. Credit invoices, e-arve dispatch via Omniva / Telema / bank, PDF retrieval, email delivery.
+- **Quotes, sales orders, prepayment invoices** — `sendoffer` / `getoffers` / `getoffer` / `setofferstatus` / `offer2inv`. Turn a price list into a pakkumine, track its status, convert the accepted one into an invoice. Unit-of-measure lookup (`GET v2/units`) so rows don't fail on `Puudub mõõtühik`.
 - **Purchase invoicing** — supplier bills, expense claims, approval queue, reverse-charge VAT for intra-EU and non-EU transactions.
 - **Payments & bank reconciliation** — payments, prepayments, settlements, **camt.053** bank statement import with auto-matching via viitenumber.
 - **General ledger & reports** — `sendglbatch` for adjustments, P&L, balance sheet (`getfinpos`), AR aging, sales/purchase reports, VAT reconciliation.
@@ -80,13 +81,14 @@ Common gotchas (full list in [`skills/merit-aktiva-core/references/authenticatio
 
 See [API seadistus on support.merit.ee](https://support.merit.ee/et/articles/368840-api-seadistus) for getting your API ID and API Key.
 
-## The six skills
+## The seven skills
 
 | Skill | What it does |
 |---|---|
 | **`merit-aktiva-core`** | Authentication, conventions, error handling. Foundation skill. |
 | **`merit-aktiva-masters`** | Customers, vendors, items, tax codes, chart of accounts. Resolves names to GUIDs. |
 | **`merit-aktiva-sales`** | Sales invoices, credit notes, e-invoicing (Omniva/Telema/bank), PDFs. |
+| **`merit-aktiva-offers`** | Quotes (pakkumised), sales orders, prepayment invoices: create, list, status, convert to invoice (`offer2inv`), units of measure. |
 | **`merit-aktiva-purchases-payments`** | Purchase invoices, expense claims, payments, camt.053 bank import. |
 | **`merit-aktiva-ledger-reports`** | GL journal entries, P&L, balance, customer-debt, sales/purchase, VAT reports. |
 | **`estonian-bookkeeping`** | 2026 Estonian tax rules — VAT, CIT, payroll, KMD codes, fringe benefits. Standalone (no Merit dependency). |
@@ -271,13 +273,14 @@ url        = base + endpoint + "?ApiId=" + apiId
 
 API ID ja API võtme genereerimiseks ava: Merit Aktiva → Seaded → API seadistus. Vaata ka samm-sammulist juhendit: [API seadistus](https://support.merit.ee/et/articles/368840-api-seadistus). API kasutamine eeldab Pro või Premium paketi olemasolu.
 
-## Kuus oskust (skills)
+## Seitse oskust (skills)
 
 | Oskus | Kirjeldus |
 |---|---|
 | **`merit-aktiva-core`** | Autentimine, API konventsioonid ja veakäsitlus. Baasoskus, millele toetuvad teised. |
 | **`merit-aktiva-masters`** | Kliendid, hankijad, artiklid, KM-koodid ja kontoplaan. Nimede vastendamine GUID-ideks. |
 | **`merit-aktiva-sales`** | Müügiarved, kreeditarved, e-arvete väljastamine ja PDF-ide genereerimine. |
+| **`merit-aktiva-offers`** | Pakkumised, müügitellimused ja ettemaksuarved: loomine, nimekiri, staatused, pakkumisest arve (`offer2inv`), mõõtühikud. |
 | **`merit-aktiva-purchases-payments`** | Ostuarved, kuluaruanded, maksed ja pangaväljavõtete import. |
 | **`merit-aktiva-ledger-reports`** | Pearaamatu kanded, finantsaruanded ja KMD andmete kontroll. |
 | **`estonian-bookkeeping`** | 2026. aasta Eesti maksureeglid — käibemaks, tulumaks, palgamaksud ja KMD koodid. |
